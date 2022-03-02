@@ -4,6 +4,8 @@
 
 #include "http_parser.h"
 
+#include <regex.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -27,6 +29,49 @@ int parse_resquest_line(char *rawdata, http_request *request) {
     if (rawdata == NULL || request == NULL) {
         return -1;
     }
+
+    // Verification de la chaine via la regex et découpage par groupe
+    regex_t regex;
+    regmatch_t pmatch[REGEX_RL_MATCH];
+
+    if (regcomp(&regex, REGEX_REQ_LINE, REG_EXTENDED) != 0) {
+        fprintf(stderr, "regcomp");
+        return -1;
+    }
+    int errcode = regexec(&regex, rawdata, REGEX_RL_MATCH, pmatch, 0);
+    if (errcode != 0) {
+        char errbuf[20];
+        regerror(errcode, &regex, errbuf, 20);
+        fprintf(stderr, "regexec : %s \n", errbuf);
+        return -1;
+    }
+
+    // Ajout des champs de la chaine verifiee dans la structure request
+    size_t method_len = (size_t)(pmatch[1].rm_eo - pmatch[1].rm_so);
+    request->request_line->method = malloc(method_len);
+    if (request->request_line->method == NULL) {
+        return -1;
+    }
+    strncpy(request->request_line->method, rawdata + pmatch[1].rm_so,
+            method_len);
+    *(request->request_line->method + method_len) = '\0';
+
+    size_t uri_len = (size_t)(pmatch[2].rm_eo - pmatch[2].rm_so);
+    request->request_line->uri = malloc(uri_len);
+    if (request->request_line->uri == NULL) {
+        return -1;
+    }
+    strncpy(request->request_line->uri, rawdata + pmatch[2].rm_so, uri_len);
+    *(request->request_line->uri + uri_len) = '\0';
+
+    size_t version_len = (size_t)(pmatch[3].rm_eo - pmatch[3].rm_so);
+    request->request_line->version = malloc(uri_len);
+    if (request->request_line->version == NULL) {
+        return -1;
+    }
+    strncpy(request->request_line->version, rawdata + pmatch[3].rm_so,
+            version_len);
+    *(request->request_line->version + version_len) = '\0';
 
     return 0;
 }
