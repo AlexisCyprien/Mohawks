@@ -42,6 +42,8 @@ enum ERR {
 
 #define REGEX_HD_MATCH 2
 
+int init_request(http_request *request);
+
 int check_request(char *rawdata);
 
 // parse_request_line : Lit une chaine de caractères, vérifie si celle-ci est

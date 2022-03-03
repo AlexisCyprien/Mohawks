@@ -9,6 +9,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+int init_request(http_request *request) {
+    if (request == NULL) {
+        return -1;
+    }
+    request->request_line = NULL;
+    request->headers = NULL;
+    request->body = NULL;
+
+    return 0;
+}
+
 int check_request(char *rawdata) {
     if (rawdata == NULL) {
         return -1;
