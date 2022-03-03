@@ -76,6 +76,35 @@ int parse_resquest_line(char *rawdata, http_request *request) {
     return 0;
 }
 
+int parse_header(char *rawdata, http_request *request) {
+    if (rawdata == NULL || request == NULL) {
+        return -1;
+    }
+    regex_t regex;
+    regmatch_t pmatch[REGEX_HD_MATCH];
+
+    if (regcomp(&regex, REGEX_HEADERS, REG_EXTENDED) != 0) {
+        fprintf(stderr, "regcomp");
+        return -1;
+    }
+    int errcode = regexec(&regex, rawdata, REGEX_HD_MATCH, pmatch, 0);
+    if (errcode != 0) {
+        char errbuf[20];
+        regerror(errcode, &regex, errbuf, 20);
+        fprintf(stderr, "regexec : %s \n", errbuf);
+        return -1;
+    }
+
+    char *name;
+    char *field;
+
+    if (request_add_headers(name, field, request) != 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
 int parse_http_request(char *rawdata, http_request *request) {
     if (rawdata == NULL || request == NULL) {
         return -1;
@@ -102,8 +131,22 @@ int parse_http_request(char *rawdata, http_request *request) {
         return -1;
     }
     free(reqline);
+    reqline = NULL;
 
     // Headers
+
+    while (token != NULL) {
+        token = strtok_r(NULL, CRLF, &saveptr);
+
+        char *header = malloc(strlen(token) + 1);
+        strncpy(header, token, strlen(token) + 1);
+        if (parse_header(header, request) == -1) {
+            free(header);
+            return -1;
+        }
+        free(header);
+        header = NULL;
+    }
 
     // Body
 
