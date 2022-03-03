@@ -47,17 +47,26 @@ int creerSocketEcouteTCP(SocketTCP *isocket, const char *adresse,
     if (isocket == NULL || adresse == NULL || port == 0) {
         return -1;
     }
+    initSocketTCP(isocket);
+    adresse_internet *pai = adresse_internet_new(adresse, port);
+    if (pai == NULL) {
+        return -1;
+    }
+    isocket->local = pai;
+
     int fd = socket(AF_UNSPEC, SOCK_STREAM, 0);
     if (fd == -1) {
         perror("socket");
         return -1;
     }
     isocket->sockfd = fd;
-    adresse_internet *pai = adresse_internet_new(adresse, port);
-    if (pai == NULL) {
+    struct sockaddr *psockaddr = (struct sockaddr *)&(pai->sock_addr);
+    if (bind(isocket->sockfd, (struct sockaddr *)&(pai->sock_addr),
+             sizeof(*psockaddr)) != 0) {
         return -1;
     }
-    isocket->local = pai;
+    isocket->bound = true;
+
     if (listen(isocket->sockfd, SIZE_QUEUE) != 0) {
         perror("listen");
         return -1;
