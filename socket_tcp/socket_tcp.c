@@ -4,6 +4,7 @@
 
 #include "socket_tcp.h"
 
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -47,26 +48,17 @@ int creerSocketEcouteTCP(SocketTCP *isocket, const char *adresse,
     if (isocket == NULL || adresse == NULL || port == 0) {
         return -1;
     }
-    initSocketTCP(isocket);
-    adresse_internet *pai = adresse_internet_new(adresse, port);
-    if (pai == NULL) {
-        return -1;
-    }
-    isocket->local = pai;
-
     int fd = socket(AF_UNSPEC, SOCK_STREAM, 0);
     if (fd == -1) {
         perror("socket");
         return -1;
     }
     isocket->sockfd = fd;
-    struct sockaddr *psockaddr = (struct sockaddr *)&(pai->sock_addr);
-    if (bind(isocket->sockfd, (struct sockaddr *)&(pai->sock_addr),
-             sizeof(*psockaddr)) != 0) {
+    adresse_internet *pai = adresse_internet_new(adresse, port);
+    if (pai == NULL) {
         return -1;
     }
-    isocket->bound = true;
-
+    isocket->local = pai;
     if (listen(isocket->sockfd, SIZE_QUEUE) != 0) {
         perror("listen");
         return -1;
@@ -118,8 +110,8 @@ int acceptSocketTCP(const SocketTCP *secoute, SocketTCP *sservice) {
     return 0;
 }
 
-int writeSocketTCP(const SocketTCP *osocket, const void *buffer,
-                   size_t length) {
+ssize_t writeSocketTCP(const SocketTCP *osocket, const void *buffer,
+                       size_t length) {
     if (osocket == NULL) {
         return -1;
     }
@@ -127,7 +119,7 @@ int writeSocketTCP(const SocketTCP *osocket, const void *buffer,
     return send(osocket->sockfd, buffer, length, 0);
 }
 
-int readSocketTCP(const SocketTCP *nsocket, void *buffer, size_t length) {
+ssize_t readSocketTCP(const SocketTCP *nsocket, void *buffer, size_t length) {
     if (nsocket == NULL) {
         return -1;
     }

@@ -132,7 +132,7 @@ int adresse_internet_get_domain(const adresse_internet *adresse) {
 }
 int sockaddr_to_adresse_internet(const struct sockaddr *addr,
                                  adresse_internet *adresse) {
-    if (addr != NULL) {
+    if (adresse = NULL) {
         return -1;
     }
     if (addr->sa_family == AF_INET6) {
