@@ -42,7 +42,25 @@ enum ERR {
 
 #define REGEX_HD_MATCH 2
 
+/*
+     FONCTIONS STRUCTURES
+*/
+
+// init_request : Initialisation de la structure http_request
+//      Renvoie -1 si request est à null
 int init_request(http_request *request);
+
+// add_headers : Ajoute un header dans la structure request si name et field
+//      ne sont pas présent dans la structure.
+int add_headers(char *name, char *field, http_request *request);
+
+// free_http_request : Libère les ressources de la structure http_request
+//      de request.
+void free_http_request(http_request *request);
+
+/*
+     FONCTIONS PARSING
+*/
 
 int check_request(char *rawdata);
 

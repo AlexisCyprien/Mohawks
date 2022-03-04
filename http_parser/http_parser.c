@@ -163,3 +163,34 @@ int parse_http_request(char *rawdata, http_request *request) {
 
     return 0;
 }
+
+int add_headers(char *name, char *field, http_request *request) {
+    if (name == NULL || field == NULL || request == NULL) {
+        return ERR_NULL;
+    }
+    header **pp = &(request->headers);
+
+    while (pp != NULL) {
+        if (strcmp(name, (*pp)->name) == 0) {
+            return ERR_REQUEST;
+        }
+        pp = &((*pp)->next);
+    }
+    pp = malloc(sizeof *pp);
+    if (pp == NULL) {
+        return ERR_MALLOC;
+    }
+    (*pp)->name = malloc(strlen(name) + 1);
+    if ((*pp)->name == NULL) {
+        return ERR_MALLOC;
+    }
+    snprintf((*pp)->name, strlen(name) + 1, "%s", name);
+
+    (*pp)->field = malloc(strlen(field) + 1);
+    if ((*pp)->field == NULL) {
+        return ERR_MALLOC;
+    }
+    snprintf((*pp)->field, strlen(field) + 1, "%s", field);
+
+    return 0;
+}
