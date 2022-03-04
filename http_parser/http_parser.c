@@ -20,14 +20,14 @@ int init_request(http_request *request) {
     return 0;
 }
 
-int check_request(char *rawdata) {
+int check_blank_line_request(char *rawdata) {
     if (rawdata == NULL) {
-        return -1;
+        return ERR_NULL;
     }
 
     // Ligne vide, fin de la requête
     if (strstr(rawdata, ENDREQ) == NULL) {
-        return -1;
+        return ERR_BLANK_LINE;
     }
     // Double espace
     if (strstr(rawdata, ERR_SPACE) != NULL) {
@@ -36,7 +36,7 @@ int check_request(char *rawdata) {
     return 0;
 }
 
-int parse_resquest_line(char *rawdata, http_request *request) {
+int parse_request_line(char *rawdata, http_request *request) {
     if (rawdata == NULL || request == NULL) {
         return -1;
     }
@@ -109,7 +109,7 @@ int parse_header(char *rawdata, http_request *request) {
     char *name;
     char *field;
 
-    if (request_add_headers(name, field, request) != 0) {
+    if (add_headers(name, field, request) != 0) {
         return -1;
     }
 
@@ -118,37 +118,38 @@ int parse_header(char *rawdata, http_request *request) {
 
 int parse_http_request(char *rawdata, http_request *request) {
     if (rawdata == NULL || request == NULL) {
-        return -1;
+        return ERR_NULL;
     }
-    if (check_request(rawdata) == -1) {
-        return -1;
+
+    int r = check_blank_line_request(rawdata);
+    if (r != 0) {
+        return r;
     }
+
     // Découpage des sauts de ligne
     char *saveptr;
     char *token = strtok_r(rawdata, CRLF, &saveptr);
     if (token == NULL) {
-        return -1;
+        return ERR_NULL;
     }
 
-    // Traitement request line
+    // Traitement Request-Line
     char *reqline = malloc(strlen(token) + 1);
     if (reqline == NULL) {
         return -1;
     }
     strncpy(reqline, token, strlen(token) + 1);
 
-    if (parse_resquest_line(reqline, request) == -1) {
+    if (parse_request_line(reqline, request) == -1) {
         free(reqline);
         return -1;
     }
     free(reqline);
     reqline = NULL;
 
-    // Headers
-
+    // Traitement Headers
     while (token != NULL) {
         token = strtok_r(NULL, CRLF, &saveptr);
-
         char *header = malloc(strlen(token) + 1);
         strncpy(header, token, strlen(token) + 1);
         if (parse_header(header, request) == -1) {
@@ -158,8 +159,6 @@ int parse_http_request(char *rawdata, http_request *request) {
         free(header);
         header = NULL;
     }
-
-    // Body
 
     return 0;
 }

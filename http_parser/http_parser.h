@@ -24,7 +24,7 @@ enum ERR {
     ERR_NULL,
     ERR_REGEX,
     ERR_REQUEST,
-    ERR_END_REQUEST,
+    ERR_BLANK_LINE,
 };
 
 #define CRLF "\r\n"
@@ -62,7 +62,9 @@ void free_http_request(http_request *request);
      FONCTIONS PARSING
 */
 
-int check_request(char *rawdata);
+// check_blank_line_request : Teste si il y a la ligne vide en fin de requête.
+//      Renvoie 0 en cas de succès, sinon une erreur de type ERR.
+int check_blank_line_request(char *rawdata);
 
 // parse_request_line : Lit une chaine de caractères, vérifie si celle-ci est
 //      une ligne de requête HTTP (Request-Line cf. RFC 1945) et,
@@ -77,6 +79,9 @@ int parse_request_line(char *rawdata, http_request *request);
 //      Sinon, renvoie -1 en cas de requêtes non conforme, ou une erreur.
 int parse_header(char *rawdata, http_request *request);
 
+// parse_http_request : Lit une chaine de caracteres, et verifie si celle-ci est
+//      une requete HTTP conforme et la traite en la stockant dans request.
+//      Renvoie 0 en cas de succès sinon une erreur de type ERR.
 int parse_http_request(char *rawdata, http_request *request);
 
 #endif  // HTTP_PARSER__H
