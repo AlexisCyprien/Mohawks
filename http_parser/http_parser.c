@@ -106,8 +106,8 @@ int parse_header(char *rawdata, http_request *request) {
         return -1;
     }
 
-    char *name;
-    char *field;
+    char *name = NULL;
+    char *field = NULL;
 
     if (add_headers(name, field, request) != 0) {
         return -1;

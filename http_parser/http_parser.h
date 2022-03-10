@@ -7,7 +7,9 @@ typedef struct {
     char *version;
 } request_line;
 
-typedef struct {
+typedef struct header header;
+
+typedef struct header {
     char *name;
     char *field;
     header *next;
