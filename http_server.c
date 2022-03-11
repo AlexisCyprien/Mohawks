@@ -4,6 +4,12 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <limits.h>
+#include <time.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
 
 #include "adresse_internet/adresse_internet.h"
 #include "http_parser/http_parser.h"
@@ -115,10 +121,6 @@ void *treat_connection(void *arg) {
         }
     }
 
-    // Lecture requete
-
-    // Traitement requete
-
     // Bye bye
 }
 
@@ -126,8 +128,67 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
     if (sservice == NULL || request == NULL) {
         return ERR_NULL;
     }
+    
 
-    // Lire requete et envoyer ou non contenu selon celle ci
+    if (strcmp(request->request_line->method, "GET") == 0) {
+
+        char *ret = strstr(request->request_line->uri, "../");
+        if (ret != NULL) { 
+            if (send(sservice->sockfd, FORBIDEN_RESP, sizeof(FORBIDEN_RESP), 0) < sizeof(FORBIDEN_RESP)) {
+                // Err
+            }
+        } else {
+            char path[PATH_MAX] = ".";
+            strncat(&path, request->request_line->uri, sizeof(path));
+            strncat(&path, INDEX, sizeof(path));
+
+            time_t t;
+            if (time(&t) == (time_t) -1) {
+                perror("time");
+            }
+            struct tm readable_time;
+            localtime_r(&t, &readable_time);
+            char time[200] = "Date: ";
+            strftime(&time[strlen(time)], sizeof(time), "%a, %d %b %Y %T %Z", &readable_time);
+            strncat(&time, CRLF, sizeof(time));
+
+            char server[200] = "Server: ";
+            strncat(&server, SERVER_NAME, sizeof(server));
+
+            char resp[4096];
+            strncpy(&resp, OK_RESP, sizeof(resp));
+            strncat(&resp, &time, sizeof(resp));
+            strncat(&resp, &server, sizeof(resp));
+
+            int index_fd;
+            errno = 0;
+            if ((index_fd = open(&path, O_RDONLY)) == -1) {
+                if (errno == ENOENT ) {
+                    if (send(sservice->sockfd, NOT_FOUND_RESP, sizeof(NOT_FOUND_RESP), 0) < sizeof(NOT_FOUND_RESP)) {
+                        // Err
+                    }
+                } else {
+                    //Err
+                }
+            }
+            char body[4096];
+            if (read(index_fd, &body, sizeof(body)) == -1) {
+                //Err
+            }
+            strncat(&resp, &body, sizeof(resp));
+            strncat(&resp, CRLF, sizeof(resp));
+            strncat(&resp, CRLF, sizeof(resp));
+
+            if (send(sservice->sockfd, &resp, sizeof(resp), 0) == 1) {
+                //Err
+            }
+
+            pthread_exit(NULL);
+        }
+        
+        
+
+    }
 
     return 0;
 }
