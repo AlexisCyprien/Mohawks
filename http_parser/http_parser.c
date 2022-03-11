@@ -46,12 +46,14 @@ int parse_request_line(char *rawdata, http_request *request) {
     regmatch_t pmatch[REGEX_RL_MATCH];
 
     if (regcomp(&regex, REGEX_REQ_LINE, REG_EXTENDED) != 0) {
+        regfree(&regex);
         fprintf(stderr, "regcomp");
         return -1;
     }
     int errcode = regexec(&regex, rawdata, REGEX_RL_MATCH, pmatch, 0);
     if (errcode != 0) {
         char errbuf[20];
+        regfree(&regex);
         regerror(errcode, &regex, errbuf, 20);
         fprintf(stderr, "regexec : %s \n", errbuf);
         return -1;
@@ -83,7 +85,7 @@ int parse_request_line(char *rawdata, http_request *request) {
     strncpy(request->request_line->version, rawdata + pmatch[3].rm_so,
             version_len);
     *(request->request_line->version + version_len) = '\0';
-
+    regfree(&regex);
     return 0;
 }
 
@@ -192,4 +194,33 @@ int add_headers(char *name, char *field, http_request *request) {
     snprintf((*pp)->field, strlen(field) + 1, "%s", field);
 
     return 0;
+}
+
+void free_headers(header *headers) {
+    while (headers != NULL) {
+        header *t = headers;
+        headers = headers->next;
+        free(t->field);
+        free(t->name);
+        free(t);
+    }
+}
+
+void free_http_request(http_request *request) {
+    if (request == NULL) {
+        return;
+    }
+    if (request->request_line != NULL) {
+        free(request->request_line->method);
+        free(request->request_line->uri);
+        free(request->request_line->version);
+        free(request->request_line);
+    }
+    if (request->headers != NULL) {
+        free_headers(request->headers);
+    }
+    if (request->body != NULL) {
+        free(request->body);
+    }
+    free(request);
 }

@@ -18,7 +18,7 @@ http_parser.o: http_parser.c http_parser.h
 unit_test.o: unit_test.c unit_test.h http_parser.h
 
 clean:
-	$(RM) -r *~ *.o $(executable)
+	$(RM) -r *~ *.o $(http_parser)*.o $(executable)
 
 
 
