@@ -3,8 +3,8 @@
 
 #include <stdbool.h>
 
-#include "adresse_internet/adresse_internet.h"
-#include "adresse_internet/adresse_internet_type.h"
+#include "../adresse_internet/adresse_internet.h"
+#include "../adresse_internet/adresse_internet_type.h"
 
 #define SIZE_QUEUE 16
 

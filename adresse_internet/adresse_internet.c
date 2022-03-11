@@ -132,15 +132,15 @@ int adresse_internet_get_domain(const adresse_internet *adresse) {
 }
 int sockaddr_to_adresse_internet(const struct sockaddr *addr,
                                  adresse_internet *adresse) {
-    if (adresse = NULL) {
+    if (adresse == NULL) {
         return -1;
     }
     if (addr->sa_family == AF_INET6) {
         struct sockaddr_in6 *tmpaddr6 = (struct sockaddr_in6 *)addr;
-        memcpy(&(adresse->sock_addr), &tmpaddr6, sizeof *tmpaddr6);
+        memcpy(&(adresse->sock_addr), &tmpaddr6, sizeof tmpaddr6);
     } else {
         struct sockaddr_in *tmpaddr = (struct sockaddr_in *)addr;
-        memcpy(&(adresse->sock_addr), &tmpaddr, sizeof *tmpaddr);
+        memcpy(&(adresse->sock_addr), &tmpaddr, sizeof tmpaddr);
     }
     return 0;
 }

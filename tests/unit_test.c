@@ -21,17 +21,17 @@ int main(void) {
     }
     TEST_END;
 
-    TEST_FUN(test_parse_request_line());
-    memset(test_request, 0, sizeof test_request);
-    strncpy(test_request, BAD_REQUEST_LINE, strlen(BAD_REQUEST_LINE) + 1);
-    r = test_parse_request_line(test_request);
-    if (r != 0) {
-        printf("Test réussis ! \n");
-        printf("%s \n", err_to_string(r));
-    } else {
-        printf("Test raté ! \n");
-    }
-    TEST_END;
+    // TEST_FUN(test_parse_request_line());
+    // memset(test_request, 0, sizeof test_request);
+    // strncpy(test_request, BAD_REQUEST_LINE, strlen(BAD_REQUEST_LINE) + 1);
+    // r = test_parse_request_line(test_request);
+    // if (r != 0) {
+    //     printf("Test réussis ! \n");
+    //     printf("%s \n", err_to_string(r));
+    // } else {
+    //     printf("Test raté ! \n");
+    // }
+    // TEST_END;
     return EXIT_SUCCESS;
 }
 
