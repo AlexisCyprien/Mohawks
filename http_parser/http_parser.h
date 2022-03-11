@@ -1,7 +1,9 @@
 #ifndef HTTP_PARSER__H
 #define HTTP_PARSER__H
 
-typedef struct {
+typedef struct request_line request_line;
+
+typedef struct request_line {
     char *method;
     char *uri;
     char *version;
@@ -15,7 +17,9 @@ typedef struct header {
     header *next;
 } header;
 
-typedef struct {
+typedef struct http_request http_request;
+
+typedef struct http_request {
     request_line *request_line;
     header *headers;
     char *body;

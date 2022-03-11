@@ -193,3 +193,23 @@ int add_headers(char *name, char *field, http_request *request) {
 
     return 0;
 }
+
+void free_headers(header *headers) {
+    while (headers != NULL) {
+        header *t = headers;
+        headers = headers->next;
+        free(t->field);
+        free(t->name);
+        free(t);
+    }
+}
+
+void free_http_request(http_request *request) {
+    free(request->request_line->method);
+    free(request->request_line->uri);
+    free(request->request_line->version);
+    free(request->request_line);
+    free_headers(request->headers);
+    free(request->body);
+    free(request);
+}
