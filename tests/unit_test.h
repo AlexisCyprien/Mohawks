@@ -6,7 +6,7 @@
 
 // test_parse_request_line : Teste le bon fonctionnement de la fonction
 //      parse_request_line dans http_parser
-int test_parse_request_line(const char *rawdata);
+int test_parse_request_line(char *rawdata);
 
 const char *err_to_string(int err);
 

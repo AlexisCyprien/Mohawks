@@ -6,25 +6,36 @@
 
 #include "../http_parser/http_parser.h"
 
-#define TEST_FUN_PRL(arg)                                              \
-    do {                                                               \
-        printf("---------- test_parse_request_line ----------\n");     \
-        int r = test_parse_request_line(arg);                          \
-        if (r != 0) {                                                  \
-            printf("%s \n", err_to_string(r));                         \
-        } else {                                                       \
-            printf("Test réussis ! \n");                               \
-        }                                                              \
-        printf("-------------------------------------------------\n"); \
-    } while (0)
+#define TEST_FUN(fun) printf("---------- " #fun " ----------\n")
+#define TEST_END printf("-------------------------------------------------\n")
 
 int main(void) {
-    TEST_FUN_PRL(GOOD_REQUEST_LINE);
-    TEST_FUN_PRL(BAD_REQUEST_LINE);
+    TEST_FUN(test_parse_request_line());
+    char test_request[60];
+    strncpy(test_request, GOOD_REQUEST_LINE, strlen(GOOD_REQUEST_LINE) + 1);
+    int r = test_parse_request_line(test_request);
+    if (r != 0) {
+        printf("%s \n", err_to_string(r));
+    } else {
+        printf("Test réussis ! \n");
+    }
+    TEST_END;
+
+    TEST_FUN(test_parse_request_line());
+    memset(test_request, 0, sizeof test_request);
+    strncpy(test_request, BAD_REQUEST_LINE, strlen(BAD_REQUEST_LINE) + 1);
+    r = test_parse_request_line(test_request);
+    if (r != 0) {
+        printf("Test réussis ! \n");
+        printf("%s \n", err_to_string(r));
+    } else {
+        printf("Test raté ! \n");
+    }
+    TEST_END;
     return EXIT_SUCCESS;
 }
 
-int test_parse_request_line(const char *rawdata) {
+int test_parse_request_line(char *rawdata) {
     int r = 0;
     if (rawdata == NULL) {
         r = ERR_NULL;
@@ -44,6 +55,12 @@ int test_parse_request_line(const char *rawdata) {
         goto tested;
     }
     r = parse_request_line(rawdata, phttp);
+    if (r == 0) {
+        printf("Method : %s \n", phttp->request_line->method);
+        printf("URI : %s \n", phttp->request_line->uri);
+        printf("Version : %s \n", phttp->request_line->version);
+    }
+
     free_http_request(phttp);
 tested:
     return r;
