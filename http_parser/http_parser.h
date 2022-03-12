@@ -42,11 +42,12 @@ enum ERR {
 #define REGEX_REQ_LINE "^(GET|HEAD|POST) (\\S+) (HTTP\\/[0-9].[0-9])"
 #define REGEX_RL_MATCH 4
 
-#define REGEX_HEADERS                                                          \
-    "^(Date|Pragma|Authorization|From|If-Modified-Since|Referer|User-Agent): " \
-    "(\\S+)"
+// #define REGEX_HEADERS                                                          
+//     "^[(Date|Pragma|Authorization|From|If-Modified-Since|Referer|User-Agent)]: " 
+//     "(\\S+)"
+#define REGEX_HEADERS "(\\S+): (\\S+)"
 
-#define REGEX_HD_MATCH 2
+#define REGEX_HD_MATCH 3
 
 /*
      FONCTIONS STRUCTURES

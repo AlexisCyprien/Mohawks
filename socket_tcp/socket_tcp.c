@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 int initSocketTCP(SocketTCP *psocket) {
     if (psocket == NULL) {
@@ -27,7 +28,7 @@ int connectSocketTCP(SocketTCP *osocket, const char *adresse, u_int16_t port) {
     if (osocket == NULL || adresse == NULL || port == 0) {
         return -1;
     }
-    int fd = socket(AF_UNSPEC, SOCK_STREAM, 0);
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1) {
         perror("socket");
         return -1;
@@ -48,7 +49,7 @@ int creerSocketEcouteTCP(SocketTCP *isocket, const char *adresse,
     if (isocket == NULL || adresse == NULL || port == 0) {
         return -1;
     }
-    int fd = socket(AF_UNSPEC, SOCK_STREAM, 0);
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1) {
         perror("socket");
         return -1;
@@ -56,6 +57,11 @@ int creerSocketEcouteTCP(SocketTCP *isocket, const char *adresse,
     isocket->sockfd = fd;
     adresse_internet *pai = adresse_internet_new(adresse, port);
     if (pai == NULL) {
+        return -1;
+    }
+    socklen_t len = sizeof(pai->sock_addr);
+    if (bind(fd,(struct sockaddr*) &(pai->sock_addr), len) == -1) {
+        perror("bind");
         return -1;
     }
     isocket->local = pai;
@@ -129,6 +135,9 @@ ssize_t readSocketTCP(const SocketTCP *nsocket, void *buffer, size_t length) {
 int closeSocketTCP(SocketTCP *socket) {
     if (socket == NULL) {
         return -1;
+    }
+    if (close(socket->sockfd) == -1) {
+        perror("close");
     }
     adresse_internet_free(socket->local);
     adresse_internet_free(socket->distant);

@@ -29,7 +29,7 @@ adresse_internet *adresse_internet_new(const char *nom, uint16_t port) {
     struct addrinfo *result;
 
     memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
+    hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
     size_t port_length = (size_t)((ceil(log10(port)) + 1) * sizeof(char));

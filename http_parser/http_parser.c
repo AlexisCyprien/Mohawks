@@ -13,7 +13,12 @@ int init_request(http_request *request) {
     if (request == NULL) {
         return -1;
     }
-    request->request_line = NULL;
+    struct request_line *reqline = malloc(256);
+    if (reqline == NULL) {
+        return -1;
+    }
+    
+    request->request_line = reqline;
     request->headers = NULL;
     request->body = NULL;
 
@@ -26,9 +31,9 @@ int check_blank_line_request(char *rawdata) {
     }
 
     // Ligne vide, fin de la requête
-    if (strstr(rawdata, ENDREQ) == NULL) {
-        return ERR_BLANK_LINE;
-    }
+    // if (strstr(rawdata, ENDREQ) == NULL) {
+    //     return ERR_BLANK_LINE;
+    // }
     // Double espace
     if (strstr(rawdata, ERR_SPACE) != NULL) {
         return -1;
@@ -59,6 +64,7 @@ int parse_request_line(char *rawdata, http_request *request) {
         return -1;
     }
 
+
     // Ajout des champs de la chaine verifiee dans la structure request
     size_t method_len = (size_t)(pmatch[1].rm_eo - pmatch[1].rm_so);
     request->request_line->method = malloc(method_len);
@@ -85,6 +91,7 @@ int parse_request_line(char *rawdata, http_request *request) {
     strncpy(request->request_line->version, rawdata + pmatch[3].rm_so,
             version_len);
     *(request->request_line->version + version_len) = '\0';
+
     regfree(&regex);
     return 0;
 }
@@ -100,6 +107,7 @@ int parse_header(char *rawdata, http_request *request) {
         fprintf(stderr, "regcomp");
         return -1;
     }
+
     int errcode = regexec(&regex, rawdata, REGEX_HD_MATCH, pmatch, 0);
     if (errcode != 0) {
         char errbuf[20];
@@ -108,8 +116,21 @@ int parse_header(char *rawdata, http_request *request) {
         return -1;
     }
 
-    char *name = NULL;
-    char *field = NULL;
+    size_t name_len = (size_t)(pmatch[1].rm_eo - pmatch[1].rm_so);
+    char *name = malloc(name_len);
+    if (name == NULL) {
+        return -1;
+    }
+    strncpy(name, rawdata + pmatch[1].rm_so, name_len);
+    *(request->request_line->method + name_len) = '\0';
+    
+    size_t field_len = (size_t)(pmatch[2].rm_eo - pmatch[1].rm_so);
+    char *field = malloc(field_len);
+    if (field == NULL) {
+        return -1;
+    }
+    strncpy(field, rawdata + pmatch[2].rm_so, field_len);
+    *(request->request_line->method + name_len) = '\0';
 
     if (add_headers(name, field, request) != 0) {
         return -1;
@@ -134,7 +155,6 @@ int parse_http_request(char *rawdata, http_request *request) {
     if (token == NULL) {
         return ERR_NULL;
     }
-
     // Traitement Request-Line
     char *reqline = malloc(strlen(token) + 1);
     if (reqline == NULL) {
@@ -146,22 +166,21 @@ int parse_http_request(char *rawdata, http_request *request) {
         free(reqline);
         return -1;
     }
+
     free(reqline);
-    reqline = NULL;
 
     // Traitement Headers
+    token = strtok_r(NULL, CRLF, &saveptr);
     while (token != NULL) {
-        token = strtok_r(NULL, CRLF, &saveptr);
         char *header = malloc(strlen(token) + 1);
-        strncpy(header, token, strlen(token) + 1);
         if (parse_header(header, request) == -1) {
             free(header);
             return -1;
         }
         free(header);
         header = NULL;
+        token = strtok_r(NULL, CRLF, &saveptr);
     }
-
     return 0;
 }
 
@@ -171,27 +190,37 @@ int add_headers(char *name, char *field, http_request *request) {
     }
     header **pp = &(request->headers);
 
-    while (pp != NULL) {
-        if (strcmp(name, (*pp)->name) == 0) {
-            return ERR_REQUEST;
-        }
-        pp = &((*pp)->next);
+    struct header *header = malloc(sizeof(struct header));
+    if (header == NULL) {
+        return -1;
     }
-    pp = malloc(sizeof *pp);
-    if (pp == NULL) {
+    header->name = malloc(strlen(name) + 1);
+    if (header->name == NULL) {
         return ERR_MALLOC;
     }
-    (*pp)->name = malloc(strlen(name) + 1);
-    if ((*pp)->name == NULL) {
+    snprintf(header->name, strlen(name) + 1, "%s", name);
+    header->field = malloc(strlen(field) + 1);
+    if (header->field == NULL) {
         return ERR_MALLOC;
     }
-    snprintf((*pp)->name, strlen(name) + 1, "%s", name);
+    snprintf(header->field, strlen(field) + 1, "%s", field);
+    header->next = NULL;
 
-    (*pp)->field = malloc(strlen(field) + 1);
-    if ((*pp)->field == NULL) {
-        return ERR_MALLOC;
+    if (*pp == NULL) {
+        *pp = header;
+    } else {
+        while ((*pp)->next != NULL) {
+            // printf("strcmp\n");
+            // printf("header: %s\n", (*pp)->name);
+            // if ((*pp)->name != NULL) {
+            //     if (strcmp(name, (*pp)->name) == 0) {
+            //         return ERR_REQUEST;
+            //     }
+            // }
+            pp = &((*pp)->next);
+        }
+        (*pp)->next = header;
     }
-    snprintf((*pp)->field, strlen(field) + 1, "%s", field);
 
     return 0;
 }

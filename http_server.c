@@ -17,7 +17,7 @@
 
 int main(void) {
     if (run_server() != 0) {
-        fprintf(stderr, "Erreur  serveur HTTP");  // Traiter erreurs
+        fprintf(stderr, "Erreur  serveur HTTP\n");  // Traiter erreurs
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
@@ -45,7 +45,7 @@ int run_server(void) {
             closeSocketTCP(secoute);
             return -1;
         }
-
+        printf("Connexion acceptée\n");
         pthread_t th;
         if (pthread_create(&th, NULL, treat_connection, sservice) != 0) {
             fprintf(stderr, " Erreur \n");
@@ -94,6 +94,7 @@ void *treat_connection(void *arg) {
                 // Err
                 pthread_exit(NULL);
             }
+            printf("requête: %s\n", buffer);
             // Lecture requete
 
             http_request *request = malloc(sizeof *request);
@@ -105,6 +106,7 @@ void *treat_connection(void *arg) {
                 // Err
                 pthread_exit(NULL);
             }
+            printf("requête initialisée!\n");
 
             int r = parse_http_request(buffer, request);
             if (r != 0) {
@@ -118,6 +120,7 @@ void *treat_connection(void *arg) {
                 pthread_exit(NULL);
             }
 
+            free(buffer);
             // free etc
         }
     }
@@ -133,9 +136,11 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
     if (strcmp(request->request_line->method, "GET") == 0) {
         char *ret = strstr(request->request_line->uri, "../");
         if (ret != NULL) {
-            if (send(sservice->sockfd, FORBIDEN_RESP, sizeof(FORBIDEN_RESP),
-                     0) < (ssize_t)sizeof(FORBIDEN_RESP)) {
-                // Err
+            if (writeSocketTCP(sservice, FORBIDEN_RESP, sizeof(FORBIDEN_RESP)) == -1) {
+                //Err
+            }
+            if (closeSocketTCP(sservice) == -1) {
+                //Err
             }
         } else {
             char path[PATH_MAX] = ".";
@@ -178,13 +183,22 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
             if (read(index_fd, &body, sizeof(body)) == -1) {
                 // Err
             }
+            strncat(resp, CRLF, sizeof(resp) - 1);
             strncat(resp, body, sizeof(resp) - 1);
             strncat(resp, CRLF, sizeof(resp) - 1);
             strncat(resp, CRLF, sizeof(resp) - 1);
 
-            if (send(sservice->sockfd, &resp, sizeof(resp), 0) == 1) {
-                // Err
+            if (writeSocketTCP(sservice, resp, sizeof(resp)) == -1) {
+                //Err
             }
+            if (closeSocketTCP(sservice) == -1) {
+                //Err
+            }
+            
+
+            // if (send(sservice->sockfd, &resp, sizeof(resp), 0) == 1) {
+            //     // Err
+            // }
 
             pthread_exit(NULL);
         }
