@@ -10,6 +10,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "adresse_internet/adresse_internet.h"
 #include "http_parser/http_parser.h"
@@ -122,8 +123,7 @@ void *treat_connection(void *arg) {
             // free etc
         }
     }
-    return NULL;
-    // Bye bye
+    pthread_exit(NULL);
 }
 
 int treat_http_request(SocketTCP *sservice, http_request *request) {
@@ -165,6 +165,7 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     }
     printf("path: %s\n", path);
 
+
     // On construit le header Date
     char date_name[] = "Date: ";
     char date_field[200];
@@ -180,20 +181,19 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     strncpy(date_header, date_name, sizeof(date_header) - 1);
     strcat(date_header, date_field);
     strcat(date_header, CRLF);
-    //create_header(date_name, date_field, date_header);
 
     // On construit le header Server
     char serv_name[] = "Server: ";
-    char server_header[strlen(serv_name) + strlen(SERVER_NAME) + strlen(CRLF) + 1];
+    char server_header[strlen(serv_name) + strlen(SERVER_NAME) + 1];
     strncpy(server_header, serv_name, sizeof(server_header) - 1);
     strcat(server_header, SERVER_NAME);
-    //create_header(serv_name, SERVER_NAME, server_header);
 
     // On construit la réponse
     char resp[HTTP_RESP_SIZE];
     strncpy(resp, OK_RESP, sizeof(resp) -1);
     strncat(resp, date_header, sizeof(resp) - 1);
     strncat(resp, server_header, sizeof(resp) - 1);
+    //strncat(resp, "Content-Type: image/png\r\n", sizeof(resp) -1);
 
     // On récupère le fichier à envoyer
     int index_fd;
@@ -213,25 +213,49 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
             return -1;
         }
     }
-
-    char body[2048];
-    if (read(index_fd, &body, sizeof(body)) == -1) {
-        closeSocketTCP(sservice);
-    }
-    // On construit le corps de la réponse
-    strncat(resp, CRLF, sizeof(resp) - 1);
-    strncat(resp, body, sizeof(resp) - 1);
-    strncat(resp, CRLF, sizeof(resp) - 1);
-    strncat(resp, CRLF, sizeof(resp) - 1);
-    // On envoie la réponse
-    printf("%s\n", resp);
-    if (writeSocketTCP(sservice, resp, sizeof(resp)) == -1) {
+   
+    // On récupère la taille du fichier
+    struct stat filestat;
+    if (fstat(index_fd, &filestat) == -1) {
+        perror("fstat");
         closeSocketTCP(sservice);
         return -1;
+    }
+
+    char filesize[100];
+    snprintf(filesize, sizeof(filesize) -1, "%ld\r\n\r\n", filestat.st_size);
+
+    strncat(resp, "Content-Length: ", sizeof(resp) -1);
+    strncat(resp, filesize, sizeof(resp) -1);
+
+    char file[filestat.st_size + 1];
+    ssize_t n;
+    if ((n = read(index_fd, file, sizeof(file))) == -1) {
+        closeSocketTCP(sservice);
+    }
+    if (close(index_fd) == -1) {
+        closeSocketTCP(sservice);
+        return -1;
+    }
+    printf("bytes: %ld\n", (long) n); 
+
+    // On construit le corps de la réponse
+    char body[sizeof(resp) + sizeof(file) + (sizeof(CRLF)*2) + 1];
+    strncpy(body, resp, sizeof(body) - 1);
+    memcpy(&body[strlen(resp)], file, sizeof(file) - 1);
+    strncat(body, CRLF, sizeof(body) - 1);
+    strncat(body, CRLF, sizeof(body) - 1);
+    body[sizeof(body) - 1] = 0;
+
+    // On envoie la réponse
+    printf("%s", body);
+    if (writeSocketTCP(sservice, body, sizeof(body)) == -1) {
+        closeSocketTCP(sservice);
+        return -1;        
     }
     if (closeSocketTCP(sservice) == -1) {
         return -1;
     }
-
+    printf("envoyé\n");
     return 0;
 }
