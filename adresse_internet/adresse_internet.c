@@ -19,7 +19,7 @@
 #include "adresse_internet_type.h"
 
 adresse_internet *adresse_internet_new(const char *nom, uint16_t port) {
-    adresse_internet *p = malloc(sizeof p);
+    adresse_internet *p = malloc(sizeof *p);
     if (p == NULL) {
         perror("malloc");
         return NULL;
@@ -42,8 +42,8 @@ adresse_internet *adresse_internet_new(const char *nom, uint16_t port) {
         fprintf(stderr, "getaddrinfo : %s", gai_strerror(r));
         return NULL;
     }
-    memcpy(&(p->sock_addr), result->ai_addr, result->ai_addrlen - 1);
-    snprintf(p->nom, strlen(nom) + 1, "%s", nom);
+    memcpy(&(p->sock_addr), result->ai_addr, result->ai_addrlen);
+    snprintf(p->nom, sizeof(nom) + 1, "%s", nom);
     snprintf(p->service, strlen(strport) + 1, "%s", strport);
 
     freeaddrinfo(result);

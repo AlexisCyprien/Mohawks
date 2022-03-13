@@ -17,7 +17,7 @@ int init_request(http_request *request) {
     if (reqline == NULL) {
         return -1;
     }
-    
+
     request->request_line = reqline;
     request->headers = NULL;
     request->body = NULL;
@@ -64,10 +64,9 @@ int parse_request_line(char *rawdata, http_request *request) {
         return -1;
     }
 
-
     // Ajout des champs de la chaine verifiee dans la structure request
     size_t method_len = (size_t)(pmatch[1].rm_eo - pmatch[1].rm_so);
-    request->request_line->method = malloc(method_len);
+    request->request_line->method = malloc(method_len + 1);
     if (request->request_line->method == NULL) {
         return -1;
     }
@@ -76,7 +75,7 @@ int parse_request_line(char *rawdata, http_request *request) {
     *(request->request_line->method + method_len) = '\0';
 
     size_t uri_len = (size_t)(pmatch[2].rm_eo - pmatch[2].rm_so);
-    request->request_line->uri = malloc(uri_len);
+    request->request_line->uri = malloc(uri_len + 1);
     if (request->request_line->uri == NULL) {
         return -1;
     }
@@ -84,7 +83,7 @@ int parse_request_line(char *rawdata, http_request *request) {
     *(request->request_line->uri + uri_len) = '\0';
 
     size_t version_len = (size_t)(pmatch[3].rm_eo - pmatch[3].rm_so);
-    request->request_line->version = malloc(uri_len);
+    request->request_line->version = malloc(version_len + 1);
     if (request->request_line->version == NULL) {
         return -1;
     }
@@ -123,7 +122,7 @@ int parse_header(char *rawdata, http_request *request) {
     }
     strncpy(name, rawdata + pmatch[1].rm_so, name_len);
     *(request->request_line->method + name_len) = '\0';
-    
+
     size_t field_len = (size_t)(pmatch[2].rm_eo - pmatch[1].rm_so);
     char *field = malloc(field_len);
     if (field == NULL) {
@@ -156,12 +155,16 @@ int parse_http_request(char *rawdata, http_request *request) {
         return ERR_NULL;
     }
     // Traitement Request-Line
-    char *reqline = malloc(strlen(token) + 1);
+    // char *reqline = malloc(strlen(token) + 1);
+    char *reqline = malloc(256);
     if (reqline == NULL) {
         return -1;
     }
-    strncpy(reqline, token, strlen(token) + 1);
-
+    // printf("SIZEOF REQLINE %ld \n", sizeof(reqline));
+    // printf("STRLEN TOKEN %ld \n", strlen(token) + 1);
+    // strncpy(reqline, token, sizeof(*reqline));
+    // strncpy(reqline, token, strlen(token) + 1);
+    memcpy(reqline, token, 256);
     if (parse_request_line(reqline, request) == -1) {
         free(reqline);
         return -1;
