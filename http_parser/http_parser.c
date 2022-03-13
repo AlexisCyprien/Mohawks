@@ -60,7 +60,7 @@ int parse_request_line(char *rawdata, http_request *request) {
         char errbuf[20];
         regfree(&regex);
         regerror(errcode, &regex, errbuf, 20);
-        fprintf(stderr, "regexec : %s \n", errbuf);
+        fprintf(stderr, "regexec : %s , %s \n", errbuf, __func__);
         return -1;
     }
 
@@ -111,7 +111,7 @@ int parse_header(char *rawdata, http_request *request) {
     if (errcode != 0) {
         char errbuf[20];
         regerror(errcode, &regex, errbuf, 20);
-        fprintf(stderr, "regexec : %s \n", errbuf);
+        fprintf(stderr, "regexec : %s , %s \n", errbuf, __func__);
         return -1;
     }
 
@@ -176,6 +176,7 @@ int parse_http_request(char *rawdata, http_request *request) {
     token = strtok_r(NULL, CRLF, &saveptr);
     while (token != NULL) {
         char *header = malloc(strlen(token) + 1);
+        memcpy(header, token, strlen(token));
         if (parse_header(header, request) == -1) {
             free(header);
             return -1;
