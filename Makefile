@@ -22,7 +22,7 @@ http_parser.o: http_parser.c http_parser.h
 http_server.o: http_server.c http_server.h 
 
 clean:
-	$(RM) -r *~ *.o $(http_parser)*.o $(executable)
+	$(RM) -r *~ *.o $(http_parser)*.o $(adresse_internet)*.o $(socket_tcp)*.o $(executable)
 
 
 
