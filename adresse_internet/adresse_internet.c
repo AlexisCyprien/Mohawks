@@ -70,6 +70,7 @@ void adresse_internet_free(adresse_internet *adresse) {
         return;
     }
     free(adresse);
+    adresse = NULL;
 }
 
 int adresse_internet_get_info(adresse_internet *adresse, char *nom_dns,
