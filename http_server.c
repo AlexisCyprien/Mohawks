@@ -94,7 +94,6 @@ void *treat_connection(void *arg) {
                 // Err
                 pthread_exit(NULL);
             }
-            printf("requête: %s\n", buffer);
             // Lecture requete
 
             http_request *request = malloc(sizeof *request);
@@ -106,7 +105,6 @@ void *treat_connection(void *arg) {
                 // Err
                 pthread_exit(NULL);
             }
-            printf("requête initialisée!\n");
 
             int r = parse_http_request(buffer, request);
             if (r != 0) {
@@ -133,75 +131,106 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
         return ERR_NULL;
     }
 
-    if (strcmp(request->request_line->method, "GET") == 0) {
-        char *ret = strstr(request->request_line->uri, "../");
-        if (ret != NULL) {
-            if (writeSocketTCP(sservice, FORBIDEN_RESP, sizeof(FORBIDEN_RESP)) == -1) {
-                //Err
-            }
-            if (closeSocketTCP(sservice) == -1) {
-                //Err
-            }
-        } else {
-            char path[PATH_MAX] = ".";
-            strncat(path, request->request_line->uri, sizeof(path) - 1);
-            strncat(path, INDEX, sizeof(path) - 1);
-
-            time_t t;
-            if (time(&t) == (time_t)-1) {
-                perror("time");
-            }
-            struct tm readable_time;
-            localtime_r(&t, &readable_time);
-            char time[200] = "Date: ";
-            strftime(&time[strlen(time)], sizeof(time), "%a, %d %b %Y %T %Z",
-                     &readable_time);
-            strncat(time, CRLF, sizeof(time) - 1);
-
-            char server[200] = "Server: ";
-            strncat(server, SERVER_NAME, sizeof(server) - 1);
-
-            char resp[4096];
-            strncpy(resp, OK_RESP, sizeof(resp));
-            strncat(resp, time, sizeof(resp) - 1);
-            strncat(resp, server, sizeof(resp) - 1);
-
-            int index_fd;
-            errno = 0;
-            if ((index_fd = open(path, O_RDONLY)) == -1) {
-                if (errno == ENOENT) {
-                    if (send(sservice->sockfd, NOT_FOUND_RESP,
-                             sizeof(NOT_FOUND_RESP),
-                             0) < (ssize_t)sizeof(NOT_FOUND_RESP)) {
-                        // Err
-                    }
-                } else {
-                    // Err
-                }
-            }
-            char body[2048];
-            if (read(index_fd, &body, sizeof(body)) == -1) {
-                // Err
-            }
-            strncat(resp, CRLF, sizeof(resp) - 1);
-            strncat(resp, body, sizeof(resp) - 1);
-            strncat(resp, CRLF, sizeof(resp) - 1);
-            strncat(resp, CRLF, sizeof(resp) - 1);
-
-            if (writeSocketTCP(sservice, resp, sizeof(resp)) == -1) {
-                //Err
-            }
-            if (closeSocketTCP(sservice) == -1) {
-                //Err
-            }
-            
-
-            // if (send(sservice->sockfd, &resp, sizeof(resp), 0) == 1) {
-            //     // Err
-            // }
-
-            pthread_exit(NULL);
+    // Vérification de l'uri demandé pour se protéger des attaques par
+    // traversée de répertoire.
+    char *ret = strstr(request->request_line->uri, "../");
+    if (ret != NULL) {
+        if (writeSocketTCP(sservice, FORBIDEN_RESP, sizeof(FORBIDEN_RESP)) == -1) {
+            closeSocketTCP(sservice);
+            return -1;
         }
+        if (closeSocketTCP(sservice) == -1) {
+            return -1;
+        }
+    } else {
+        if (strcmp(request->request_line->method, "GET") == 0) {
+            if (treat_GET_request(sservice, request) == -1) {
+                return -1;
+            }
+        }
+    }
+    return 0;
+}
+
+int treat_GET_request(SocketTCP *sservice, http_request *request) {
+    if (sservice == NULL || request == NULL) {
+        return ERR_NULL;
+    }
+
+    // On construit le chemin du fichier demandé
+    char path[PATH_MAX] = DEFAULT_CONTENT_DIR;
+    strncat(path, request->request_line->uri, sizeof(path) - 1);
+    if (strcmp(request->request_line->uri, "/") == 0) {
+        strncat(path, DEFAULT_INDEX, sizeof(path) - 1);
+    }
+    printf("path: %s\n", path);
+
+    // On construit le header Date
+    char date_name[] = "Date: ";
+    char date_field[200];
+    time_t t;
+    struct tm readable_time;
+    if (time(&t) == (time_t)-1) {
+        perror("time");
+    }
+    localtime_r(&t, &readable_time);
+    
+    strftime(date_field, sizeof(date_field), "%a, %d %b %Y %T %Z", &readable_time);
+    char date_header[strlen(date_name) + strlen(date_field) + strlen(CRLF) + 1];
+    strncpy(date_header, date_name, sizeof(date_header) - 1);
+    strcat(date_header, date_field);
+    strcat(date_header, CRLF);
+    //create_header(date_name, date_field, date_header);
+
+    // On construit le header Server
+    char serv_name[] = "Server: ";
+    char server_header[strlen(serv_name) + strlen(SERVER_NAME) + strlen(CRLF) + 1];
+    strncpy(server_header, serv_name, sizeof(server_header) - 1);
+    strcat(server_header, SERVER_NAME);
+    //create_header(serv_name, SERVER_NAME, server_header);
+
+    // On construit la réponse
+    char resp[HTTP_RESP_SIZE];
+    strncpy(resp, OK_RESP, sizeof(resp) -1);
+    strncat(resp, date_header, sizeof(resp) - 1);
+    strncat(resp, server_header, sizeof(resp) - 1);
+
+    // On récupère le fichier à envoyer
+    int index_fd;
+    errno = 0;
+    // Si le fichier demandé n'existe pas, on envoie un code 404
+    if ((index_fd = open(path, O_RDONLY)) == -1) {
+        if (errno == ENOENT) {
+            if (writeSocketTCP(sservice, NOT_FOUND_RESP, sizeof(NOT_FOUND_RESP)) == -1) {
+                closeSocketTCP(sservice);
+                return -1;
+            }
+            if (closeSocketTCP(sservice) == -1) {
+                return -1;
+            }
+            return 0;
+        } else {
+            return -1;
+        }
+    }
+
+    char body[2048];
+    if (read(index_fd, &body, sizeof(body)) == -1) {
+        closeSocketTCP(sservice);
+    }
+    // On construit le corps de la réponse
+    strncat(resp, CRLF, sizeof(resp) - 1);
+    strncat(resp, body, sizeof(resp) - 1);
+    strncat(resp, CRLF, sizeof(resp) - 1);
+    strncat(resp, CRLF, sizeof(resp) - 1);
+    // On envoie la réponse
+    printf("%s\n", resp);
+    if (writeSocketTCP(sservice, resp, sizeof(resp)) == -1) {
+        closeSocketTCP(sservice);
+        return -1;
+    }
+    if (closeSocketTCP(sservice) == -1) {
+        return -1;
     }
 
     return 0;
