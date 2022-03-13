@@ -145,8 +145,15 @@ int closeSocketTCP(SocketTCP *socket) {
     if (close(socket->sockfd) == -1) {
         perror("close");
     }
-    adresse_internet_free(socket->local);
-    adresse_internet_free(socket->distant);
+    if (socket->local != NULL) {
+        adresse_internet_free(socket->local);
+    }
+    if (socket->distant != NULL) {
+        adresse_internet_free(socket->distant);
+    }
+
     free(socket);
+    socket = NULL;
+
     return 0;
 }

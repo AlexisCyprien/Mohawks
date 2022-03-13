@@ -5,6 +5,7 @@
 #include <linux/limits.h>
 #include <poll.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,7 +16,26 @@
 #include "http_parser/http_parser.h"
 #include "socket_tcp/socket_tcp.h"
 
+void handler(int num);
+
+SocketTCP *secoute;
+
 int main(void) {
+    signal(SIGHUP, SIG_IGN);
+    /*TODO: implémenter la gestion des signaux */
+    sigset_t mask;
+    sigfillset(&mask);
+    sigdelset(&mask, SIGINT);
+    sigdelset(&mask, SIGTERM);
+    sigprocmask(SIG_SETMASK, &mask, NULL);
+
+    struct sigaction sa;
+    sa.sa_handler = handler;
+    sigfillset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+
     if (run_server() != 0) {
         fprintf(stderr, "Erreur  serveur HTTP\n");  // Traiter erreurs
         return EXIT_FAILURE;
@@ -24,7 +44,7 @@ int main(void) {
 }
 
 int run_server(void) {
-    SocketTCP *secoute = malloc(sizeof *secoute);
+    secoute = malloc(sizeof *secoute);
     if (secoute == NULL) {
         return -1;
     }
@@ -76,7 +96,14 @@ void *treat_connection(void *arg) {
         perror("poll");
     } else if (ret == 0) {
         // Timeout à gerer
-
+        if (writeSocketTCP(sservice, TIMEOUT_RESP, sizeof(TIMEOUT_RESP)) ==
+            -1) {
+            // Err
+        }
+        if (closeSocketTCP(sservice) == -1) {
+            // Err
+        }
+        pthread_exit(NULL);
     } else {
         if (fds[0].revents & POLLERR) {
             // Erreur sur la socket
@@ -117,6 +144,10 @@ void *treat_connection(void *arg) {
             r = treat_http_request(sservice, request);
             if (r != 0) {
                 // Err
+                if (closeSocketTCP(sservice) == -1) {
+                    // Err
+                }
+
                 pthread_exit(NULL);
             }
 
@@ -124,6 +155,7 @@ void *treat_connection(void *arg) {
             // free etc
         }
     }
+
     return NULL;
     // Bye bye
 }
@@ -136,11 +168,12 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
     if (strcmp(request->request_line->method, "GET") == 0) {
         char *ret = strstr(request->request_line->uri, "../");
         if (ret != NULL) {
-            if (writeSocketTCP(sservice, FORBIDEN_RESP, sizeof(FORBIDEN_RESP)) == -1) {
-                //Err
+            if (writeSocketTCP(sservice, FORBIDEN_RESP,
+                               sizeof(FORBIDEN_RESP)) == -1) {
+                // Err
             }
             if (closeSocketTCP(sservice) == -1) {
-                //Err
+                // Err
             }
         } else {
             char path[PATH_MAX] = ".";
@@ -189,12 +222,11 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
             strncat(resp, CRLF, sizeof(resp) - 1);
 
             if (writeSocketTCP(sservice, resp, sizeof(resp)) == -1) {
-                //Err
+                // Err
             }
             if (closeSocketTCP(sservice) == -1) {
-                //Err
+                // Err
             }
-            
 
             // if (send(sservice->sockfd, &resp, sizeof(resp), 0) == 1) {
             //     // Err
@@ -205,4 +237,19 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
     }
 
     return 0;
+}
+
+void handler(int num) {
+    switch (num) {
+        case SIGINT:
+            if (secoute != NULL) {
+                closeSocketTCP(secoute);
+            }
+            exit(EXIT_SUCCESS);
+        case SIGTERM:
+            if (secoute != NULL) {
+                closeSocketTCP(secoute);
+            }
+            exit(EXIT_SUCCESS);
+    }
 }
