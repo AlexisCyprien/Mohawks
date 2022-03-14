@@ -109,6 +109,7 @@ int parse_header(char *rawdata, http_request *request) {
 
     int errcode = regexec(&regex, rawdata, REGEX_HD_MATCH, pmatch, 0);
     if (errcode != 0) {
+        regfree(&regex);
         char errbuf[20];
         regerror(errcode, &regex, errbuf, 20);
         fprintf(stderr, "regexec : %s , %s \n", errbuf, __func__);
@@ -116,24 +117,25 @@ int parse_header(char *rawdata, http_request *request) {
     }
 
     size_t name_len = (size_t)(pmatch[1].rm_eo - pmatch[1].rm_so);
-    char *name = malloc(name_len);
+    char *name = malloc(name_len + 1);
     if (name == NULL) {
         return -1;
     }
     strncpy(name, rawdata + pmatch[1].rm_so, name_len);
-    *(request->request_line->method + name_len) = '\0';
+    *(name + name_len) = '\0';
 
     size_t field_len = (size_t)(pmatch[2].rm_eo - pmatch[1].rm_so);
-    char *field = malloc(field_len);
+    char *field = malloc(field_len + 1);
     if (field == NULL) {
         return -1;
     }
     strncpy(field, rawdata + pmatch[2].rm_so, field_len);
-    *(request->request_line->method + name_len) = '\0';
+    *(field + field_len) = '\0';
 
     if (add_headers(name, field, request) != 0) {
         return -1;
     }
+    regfree(&regex);
 
     return 0;
 }

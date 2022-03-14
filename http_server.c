@@ -125,6 +125,7 @@ void *treat_connection(void *arg) {
 
             if (readSocketTCP(sservice, buffer, buflen) == -1) {
                 // Err
+                free(buffer);
                 pthread_exit(NULL);
             }
             // Lecture requete
@@ -135,6 +136,7 @@ void *treat_connection(void *arg) {
                 if (closeSocketTCP(sservice) == -1) {
                     // Err
                 }
+                free(buffer);
                 pthread_exit(NULL);
             }
             if (init_request(request) != 0) {
@@ -142,7 +144,7 @@ void *treat_connection(void *arg) {
                 if (closeSocketTCP(sservice) == -1) {
                     // Err
                 }
-                pthread_exit(NULL);
+                goto end_connection;
             }
 
             int r = parse_http_request(buffer, request);
@@ -155,7 +157,7 @@ void *treat_connection(void *arg) {
                 if (closeSocketTCP(sservice) == -1) {
                     // Err
                 }
-                pthread_exit(NULL);
+                goto end_connection;
             }
 
             r = treat_http_request(sservice, request);
@@ -164,11 +166,12 @@ void *treat_connection(void *arg) {
                 if (closeSocketTCP(sservice) == -1) {
                     // Err
                 }
-
-                pthread_exit(NULL);
             }
-
+        end_connection:
+            free_http_request(request);
+            request = NULL;
             free(buffer);
+            buffer = NULL;
             // free etc
         }
     }
@@ -294,11 +297,9 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     char body[sizeof(resp) + sizeof(file) + (sizeof(CRLF) * 2) + 1];
     strncpy(body, resp, sizeof(body) - 1);
     memcpy(&body[strlen(resp)], file, sizeof(file) - 1);
-    // strncat(body, CRLF, sizeof(body) - 1);
     memcpy(body + sizeof(resp) + sizeof(file) - 2, CRLF, strlen(CRLF));
     memcpy(body + sizeof(resp) + sizeof(file) + strlen(CRLF) - 2, CRLF,
            strlen(CRLF));
-    // strncat(body, CRLF, sizeof(body) - 1);
     body[sizeof(body) - 1] = 0;
 
     // On envoie la réponse
