@@ -188,20 +188,6 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
     return 0;
 }
 
-void handler(int num) {
-    switch (num) {
-        case SIGINT:
-            if (secoute != NULL) {
-                closeSocketTCP(secoute);
-            }
-            exit(EXIT_SUCCESS);
-        case SIGTERM:
-            if (secoute != NULL) {
-                closeSocketTCP(secoute);
-            }
-            exit(EXIT_SUCCESS);
-    }
-}
 int treat_GET_request(SocketTCP *sservice, http_request *request) {
     if (sservice == NULL || request == NULL) {
         return ERR_NULL;
@@ -294,8 +280,11 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     char body[sizeof(resp) + sizeof(file) + (sizeof(CRLF) * 2) + 1];
     strncpy(body, resp, sizeof(body) - 1);
     memcpy(&body[strlen(resp)], file, sizeof(file) - 1);
-    strncat(body, CRLF, sizeof(body) - 1);
-    strncat(body, CRLF, sizeof(body) - 1);
+    // strncat(body, CRLF, sizeof(body) - 1);
+    memcpy(body + sizeof(resp) + sizeof(file) - 2, CRLF, strlen(CRLF));
+    memcpy(body + sizeof(resp) + sizeof(file) + strlen(CRLF) - 2, CRLF,
+           strlen(CRLF));
+    // strncat(body, CRLF, sizeof(body) - 1);
     body[sizeof(body) - 1] = 0;
 
     // On envoie la réponse
@@ -309,4 +298,19 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     }
     printf("envoyé\n");
     return 0;
+}
+
+void handler(int num) {
+    switch (num) {
+        case SIGINT:
+            if (secoute != NULL) {
+                closeSocketTCP(secoute);
+            }
+            exit(EXIT_SUCCESS);
+        case SIGTERM:
+            if (secoute != NULL) {
+                closeSocketTCP(secoute);
+            }
+            exit(EXIT_SUCCESS);
+    }
 }
