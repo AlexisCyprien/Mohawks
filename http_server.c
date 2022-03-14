@@ -24,6 +24,7 @@
 void handler(int num);
 
 SocketTCP *secoute;
+static __thread SocketTCP *sservice;
 
 int main(void) {
     signal(SIGHUP, SIG_IGN);
@@ -61,7 +62,7 @@ int run_server(void) {
     }
 
     while (1) {
-        SocketTCP *sservice = malloc(sizeof *sservice);
+        sservice = malloc(sizeof *sservice);  // <- PAS FREE !!
         initSocketTCP(sservice);
         if (sservice == NULL) {
             closeSocketTCP(secoute);
@@ -322,10 +323,16 @@ void handler(int num) {
             if (secoute != NULL) {
                 closeSocketTCP(secoute);
             }
+            if (sservice != NULL) {
+                closeSocketTCP(sservice);
+            }
             exit(EXIT_SUCCESS);
         case SIGTERM:
             if (secoute != NULL) {
                 closeSocketTCP(secoute);
+            }
+            if (sservice != NULL) {
+                closeSocketTCP(sservice);
             }
             exit(EXIT_SUCCESS);
     }
