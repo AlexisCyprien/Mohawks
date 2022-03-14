@@ -136,6 +136,10 @@ int parse_header(char *rawdata, http_request *request) {
         return -1;
     }
     regfree(&regex);
+    free(name);
+    name = NULL;
+    free(field);
+    field = NULL;
 
     return 0;
 }
