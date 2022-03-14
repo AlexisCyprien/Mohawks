@@ -96,30 +96,34 @@ int parse_request_line(char *rawdata, http_request *request) {
 }
 
 int parse_header(char *rawdata, http_request *request) {
+    int r = 0;
     if (rawdata == NULL || request == NULL) {
-        return -1;
+        r = ERR_NULL;
+        goto parse_end;
     }
     regex_t regex;
     regmatch_t pmatch[REGEX_HD_MATCH];
 
     if (regcomp(&regex, REGEX_HEADERS, REG_EXTENDED) != 0) {
-        fprintf(stderr, "regcomp");
-        return -1;
+        fprintf(stderr, "%s : regcomp\n", __func__);
+        r = ERR_REGEX;
+        goto parse_end;
     }
 
     int errcode = regexec(&regex, rawdata, REGEX_HD_MATCH, pmatch, 0);
     if (errcode != 0) {
-        regfree(&regex);
         char errbuf[20];
         regerror(errcode, &regex, errbuf, 20);
         fprintf(stderr, "regexec : %s , %s \n", errbuf, __func__);
-        return -1;
+        r = ERR_REGEX;
+        goto err_reg;
     }
 
     size_t name_len = (size_t)(pmatch[1].rm_eo - pmatch[1].rm_so);
     char *name = malloc(name_len + 1);
     if (name == NULL) {
-        return -1;
+        r = ERR_MALLOC;
+        goto err_reg;
     }
     strncpy(name, rawdata + pmatch[1].rm_so, name_len);
     *(name + name_len) = '\0';
@@ -127,21 +131,23 @@ int parse_header(char *rawdata, http_request *request) {
     size_t field_len = (size_t)(pmatch[2].rm_eo - pmatch[1].rm_so);
     char *field = malloc(field_len + 1);
     if (field == NULL) {
-        return -1;
+        r = ERR_MALLOC;
+        goto err_malloc;
     }
     strncpy(field, rawdata + pmatch[2].rm_so, field_len);
     *(field + field_len) = '\0';
 
-    if (add_headers(name, field, request) != 0) {
-        return -1;
-    }
-    regfree(&regex);
-    free(name);
-    name = NULL;
+    r = add_headers(name, field, request);
+
     free(field);
     field = NULL;
-
-    return 0;
+err_malloc:
+    free(name);
+    name = NULL;
+err_reg:
+    regfree(&regex);
+parse_end:
+    return r;
 }
 
 int parse_http_request(char *rawdata, http_request *request) {
