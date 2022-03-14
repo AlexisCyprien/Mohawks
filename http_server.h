@@ -5,6 +5,7 @@
 #include "socket_tcp/socket_tcp.h"
 
 #define SERVER_NAME "Mohawks/0.9\r\n"
+#define SERVER_HEADER_NAME_SIZE 10
 
 #define DEFAULT_CONTENT_DIR "./content"
 #define DEFAULT_INDEX "index.html"
