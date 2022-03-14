@@ -95,7 +95,7 @@ void *treat_connection(void *arg) {
     fds[0].fd = sservice->sockfd;
     fds[0].events = POLLIN;
 
-    int ret = poll(fds, 1, 10000);  // Timeout 10s
+    int ret = poll(fds, 1, 30000);  // Timeout 10s
 
     if (ret == -1) {
         perror("poll");
