@@ -53,7 +53,7 @@ int run_server(void) {
     if (secoute == NULL) {
         return -1;
     }
-    if (creerSocketEcouteTCP(secoute, "localhost", 80) != 0) {  // localhost ??
+    if (creerSocketEcouteTCP(secoute, "localhost", 80) != 0) {
         fprintf(stderr, "Erreur creerSocketEcouteTCP. \n");
         closeSocketTCP(secoute);
         return -1;
@@ -61,6 +61,7 @@ int run_server(void) {
 
     while (1) {
         SocketTCP *sservice = malloc(sizeof *sservice);
+        initSocketTCP(sservice);
         if (sservice == NULL) {
             closeSocketTCP(secoute);
             return -1;
@@ -95,7 +96,7 @@ void *treat_connection(void *arg) {
     fds[0].fd = sservice->sockfd;
     fds[0].events = POLLIN;
 
-    int ret = poll(fds, 1, 30000);  // Timeout 10s
+    int ret = poll(fds, 1, 30000);  // Timeout 30s
 
     if (ret == -1) {
         perror("poll");
@@ -131,16 +132,29 @@ void *treat_connection(void *arg) {
             http_request *request = malloc(sizeof *request);
             if (request == NULL) {
                 // Err
+                if (closeSocketTCP(sservice) == -1) {
+                    // Err
+                }
                 pthread_exit(NULL);
             }
             if (init_request(request) != 0) {
                 // Err
+                if (closeSocketTCP(sservice) == -1) {
+                    // Err
+                }
                 pthread_exit(NULL);
             }
 
             int r = parse_http_request(buffer, request);
             if (r != 0) {
                 // Err
+                if (writeSocketTCP(sservice, BAD_REQUEST_RESP,
+                                   sizeof(BAD_REQUEST_RESP)) == -1) {
+                    // Err
+                }
+                if (closeSocketTCP(sservice) == -1) {
+                    // Err
+                }
                 pthread_exit(NULL);
             }
 
