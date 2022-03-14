@@ -65,6 +65,8 @@ int add_headers(char *name, char *field, http_request *request);
 //      de request.
 void free_http_request(http_request *request);
 
+void free_headers(header *headers);
+
 /*
      FONCTIONS PARSING
 */

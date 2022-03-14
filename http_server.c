@@ -100,14 +100,18 @@ void *treat_connection(void *arg) {
     if (ret == -1) {
         perror("poll");
     } else if (ret == 0) {
-        // Timeout à gerer
-        if (writeSocketTCP(sservice, TIMEOUT_RESP, sizeof(TIMEOUT_RESP)) ==
-            -1) {
-            // Err
+        // Gestion du timeout
+        http_response *response = malloc(sizeof(http_response));
+        if (create_http_response(response, HTTP_VERSION, TIMEOUT_STATUS, NULL, 0) == -1) {
+            free_http_response(response);
+            closeSocketTCP(sservice);
         }
-        if (closeSocketTCP(sservice) == -1) {
-            // Err
+        if (send_http_response(sservice, response) == -1) {
+            free_http_response(response);
+            closeSocketTCP(sservice);
         }
+        free_http_response(response);
+
         pthread_exit(NULL);
     } else {
         if (fds[0].revents & POLLERR) {
@@ -170,14 +174,22 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
     // traversée de répertoire.
     char *ret = strstr(request->request_line->uri, "../");
     if (ret != NULL) {
-        if (writeSocketTCP(sservice, FORBIDEN_RESP, sizeof(FORBIDEN_RESP)) ==
-            -1) {
+        http_response *response = malloc(sizeof(http_response));
+        if (response == NULL) {
+            return -1;
+        }
+        if (create_http_response(response, HTTP_VERSION, FORBIDEN_STATUS, NULL, 0) == -1) {
             closeSocketTCP(sservice);
             return -1;
         }
-        if (closeSocketTCP(sservice) == -1) {
+        if (send_http_response(sservice, response) == -1) {
+            free_http_response(response);
+            closeSocketTCP(sservice);
             return -1;
         }
+        free_http_response(response);
+        return 0;
+
     } else {
         if (strcmp(request->request_line->method, "GET") == 0) {
             if (treat_GET_request(sservice, request) == -1) {
@@ -201,56 +213,31 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     }
     printf("path: %s\n", path);
 
-    // On construit le header Date
-    char date_name[] = "Date: ";
-    char date_field[200];
-    time_t t;
-    struct tm readable_time;
-    if (time(&t) == (time_t)-1) {
-        perror("time");
-    }
-    localtime_r(&t, &readable_time);
-
-    strftime(date_field, sizeof(date_field), "%a, %d %b %Y %T %Z",
-             &readable_time);
-    char date_header[strlen(date_name) + strlen(date_field) + strlen(CRLF) + 1];
-    strncpy(date_header, date_name, sizeof(date_header) - 1);
-    strcat(date_header, date_field);
-    strcat(date_header, CRLF);
-
-    // On construit le header Server
-    char serv_name[SERVER_HEADER_NAME_SIZE] = "Server: ";
-    char server_header[SERVER_HEADER_NAME_SIZE + strlen(SERVER_NAME) + 1];
-    strncpy(server_header, serv_name, sizeof(server_header) - 1);
-    strcat(server_header, SERVER_NAME);
-
-    // On construit la réponse
-    char resp[HTTP_RESP_SIZE];
-    strncpy(resp, OK_RESP, sizeof(resp) - 1);
-    strncat(resp, date_header, sizeof(resp) - 1);
-    strncat(resp, server_header, sizeof(resp) - 1);
-    // strncat(resp, "Content-Type: image/png\r\n", sizeof(resp) -1);
-
     // On récupère le fichier à envoyer
     int index_fd;
     errno = 0;
     // Si le fichier demandé n'existe pas, on envoie un code 404
     if ((index_fd = open(path, O_RDONLY)) == -1) {
         if (errno == ENOENT) {
-            if (writeSocketTCP(sservice, NOT_FOUND_RESP,
-                               sizeof(NOT_FOUND_RESP)) == -1) {
+            http_response *response = malloc(sizeof(http_response));
+            if (response == NULL) {
+                return -1;
+            }
+            if (create_http_response(response, HTTP_VERSION, NOT_FOUND_STATUS, NULL, 0) == -1) {
                 closeSocketTCP(sservice);
                 return -1;
             }
-            if (closeSocketTCP(sservice) == -1) {
+            if (send_http_response(sservice, response) == -1) {
+                free_http_response(response);
+                closeSocketTCP(sservice);
                 return -1;
             }
+            free_http_response(response);
             return 0;
         } else {
             return -1;
         }
     }
-
     // On récupère la taille du fichier
     struct stat filestat;
     if (fstat(index_fd, &filestat) == -1) {
@@ -258,12 +245,8 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
         closeSocketTCP(sservice);
         return -1;
     }
-
     char filesize[100];
-    snprintf(filesize, sizeof(filesize) - 1, "%ld\r\n\r\n", filestat.st_size);
-
-    strncat(resp, "Content-Length: ", sizeof(resp) - 1);
-    strncat(resp, filesize, sizeof(resp) - 1);
+    snprintf(filesize, sizeof(filesize) - 1, "%ld", filestat.st_size);
 
     char file[filestat.st_size + 1];
     ssize_t n;
@@ -274,31 +257,46 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
         closeSocketTCP(sservice);
         return -1;
     }
-    printf("bytes: %ld\n", (long)n);
+    file[sizeof(file) - 1] = 0;
 
-    // On construit le corps de la réponse
-    char body[sizeof(resp) + sizeof(file) + (sizeof(CRLF) * 2) + 1];
-    strncpy(body, resp, sizeof(body) - 1);
-    memcpy(&body[strlen(resp)], file, sizeof(file) - 1);
-    // strncat(body, CRLF, sizeof(body) - 1);
-    memcpy(body + sizeof(resp) + sizeof(file) - 2, CRLF, strlen(CRLF));
-    memcpy(body + sizeof(resp) + sizeof(file) + strlen(CRLF) - 2, CRLF,
-           strlen(CRLF));
-    // strncat(body, CRLF, sizeof(body) - 1);
-    body[sizeof(body) - 1] = 0;
-
-    // On envoie la réponse
-    printf("%s", body);
-    if (writeSocketTCP(sservice, body, sizeof(body)) == -1) {
+    // On construit la réponse
+    http_response *response = malloc(sizeof(http_response));
+    if (response == NULL) {
+        return -1;
+    }
+    if (create_http_response(response, HTTP_VERSION, OK_STATUS,
+            file, (unsigned long) filestat.st_size) == -1) {
         closeSocketTCP(sservice);
         return -1;
     }
-    if (closeSocketTCP(sservice) == -1) {
+    // On construit le header Date
+    char date_field[200];
+    time_t t;
+    struct tm readable_time;
+    if (time(&t) == (time_t)-1) {
+        perror("time");
+    }
+    localtime_r(&t, &readable_time);
+
+    strftime(date_field, sizeof(date_field), "%a, %d %b %Y %T %Z",
+             &readable_time);
+    add_response_header("Date: ", date_field, response);
+
+    // On construit le header Server
+    add_response_header("Server: ", SERVER_NAME, response);
+
+    add_response_header("Content-Length: ", filesize, response);
+
+    if (send_http_response(sservice, response) == -1) {
+        free_http_response(response);
+        closeSocketTCP(sservice);
         return -1;
     }
-    printf("envoyé\n");
+    free_http_response(response);
+    
     return 0;
 }
+
 
 void handler(int num) {
     switch (num) {
@@ -313,4 +311,155 @@ void handler(int num) {
             }
             exit(EXIT_SUCCESS);
     }
+}
+
+
+int create_http_response(http_response *response, const char *version, 
+        const char *status, const char *body, unsigned long body_size) {
+    if (response == NULL || version == NULL || status == NULL) {
+        return -1;
+    }
+    status_line *status_line = malloc(sizeof(struct status_line));
+    if (status_line == NULL) {
+        return -1;
+    }
+    status_line->version = malloc(sizeof(version));
+    if (status_line->version == NULL) {
+        return -1;
+    }
+    status_line->status_code = malloc(sizeof(status));
+    if (status_line->status_code == NULL) {
+        return -1;
+    }
+
+    memcpy(status_line->version, version, strlen(version));
+    memcpy(status_line->status_code, status, strlen(status));
+    response->status_line = status_line;
+    response->headers = NULL;
+    if (body != NULL) {
+            response->body = malloc(body_size + 1);
+            if (response->body == NULL) {
+                return -1;
+            }
+            memcpy(response->body, body, body_size);
+            response->body_size = body_size;
+    } else { 
+        response->body = NULL; 
+        response->body_size = 0;    
+    }
+
+    return 0;
+}
+
+
+int send_http_response(SocketTCP *osocket, http_response *response) {
+    if (osocket == NULL || response == NULL) {
+        return -1;
+    }
+    
+    char resp[4096];
+    char *version = response->status_line->version;
+    char *status = response->status_line->status_code;
+
+    // On ajoute la version http
+    strncpy(resp, version, sizeof(resp) - 1);
+
+    // On ajoute le status
+    strncat(resp, status, sizeof(resp) -1);
+    strncat(resp, CRLF, sizeof(resp) -1);
+    
+    // On ajoute les headers
+    if (response->headers != NULL) {
+        header **pp = &(response->headers);
+        while (*pp != NULL) {
+            char *name = (*pp)->name;
+            char *field = (*pp)->field;
+
+            // On ajoute le nom du header
+            strncat(resp, name, sizeof(resp) -1);
+
+            // On ajoute le champ du header
+            strncat(resp, field, sizeof(resp) -1);
+
+            strncat(resp, CRLF, sizeof(resp) -1);
+            
+            pp = &((*pp)->next);
+        }
+    }
+
+    strncat(resp, CRLF, sizeof(resp) -1);
+
+    if (writeSocketTCP(osocket, resp, strlen(resp)) == -1){
+        return -1;
+    }
+    if (writeSocketTCP(osocket, response->body, response->body_size) == -1){
+        return -1;
+    }
+    if (response->body != NULL) {
+        for (int i = 0; i < 2; ++i) {
+            if (writeSocketTCP(osocket, CRLF, strlen(CRLF)) == -1){
+                return -1;
+            }
+        }
+    }   
+    
+    if (closeSocketTCP(osocket) == -1) {
+        return -1;
+    }
+
+    return 0;
+}
+
+
+void free_http_response(http_response *response) {
+    if (response == NULL) {
+        return;
+    }
+    if (response->status_line != NULL) {
+        free(response->status_line->version);
+        free(response->status_line->status_code);
+        free(response->status_line);
+    }
+    if (response->headers != NULL) {
+        free_headers(response->headers);
+    }
+    if (response->body != NULL) {
+        free(response->body);
+    }
+    free(response);
+}
+
+
+int add_response_header(const char *name, const char *field, http_response *response) {
+    if (name == NULL || field == NULL || response == NULL) {
+        return ERR_NULL;
+    }
+    header **pp = &(response->headers);
+
+    struct header *header = malloc(sizeof(struct header));
+    if (header == NULL) {
+        return -1;
+    }
+    header->name = malloc(strlen(name) + 1);
+    if (header->name == NULL) {
+        return ERR_MALLOC;
+    }
+    snprintf(header->name, strlen(name) + 1, "%s", name);
+    header->field = malloc(strlen(field) + 1);
+    if (header->field == NULL) {
+        return ERR_MALLOC;
+    }
+    snprintf(header->field, strlen(field) + 1, "%s", field);
+    header->next = NULL;
+
+    if (*pp == NULL) {
+        *pp = header;
+    } else {
+        while ((*pp)->next != NULL) {
+            pp = &((*pp)->next);
+        }
+        (*pp)->next = header;
+    }
+
+    return 0;
 }

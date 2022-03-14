@@ -208,13 +208,6 @@ int add_headers(char *name, char *field, http_request *request) {
         *pp = header;
     } else {
         while ((*pp)->next != NULL) {
-            // printf("strcmp\n");
-            // printf("header: %s\n", (*pp)->name);
-            // if ((*pp)->name != NULL) {
-            //     if (strcmp(name, (*pp)->name) == 0) {
-            //         return ERR_REQUEST;
-            //     }
-            // }
             pp = &((*pp)->next);
         }
         (*pp)->next = header;
