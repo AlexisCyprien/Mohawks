@@ -59,8 +59,14 @@ int creerSocketEcouteTCP(SocketTCP *isocket, const char *adresse,
     if (pai == NULL) {
         return -1;
     }
+    int yes = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
+        perror("setsockopt");
+        return -1;
+    }
+
     socklen_t len = sizeof(pai->sock_addr);
-    if (bind(fd,(struct sockaddr*) &(pai->sock_addr), len) == -1) {
+    if (bind(fd, (struct sockaddr *)&(pai->sock_addr), len) == -1) {
         perror("bind");
         return -1;
     }
@@ -139,8 +145,15 @@ int closeSocketTCP(SocketTCP *socket) {
     if (close(socket->sockfd) == -1) {
         perror("close");
     }
-    adresse_internet_free(socket->local);
-    adresse_internet_free(socket->distant);
+    if (socket->local != NULL) {
+        adresse_internet_free(socket->local);
+    }
+    if (socket->distant != NULL) {
+        adresse_internet_free(socket->distant);
+    }
+
     free(socket);
+    socket = NULL;
+
     return 0;
 }

@@ -1,3 +1,7 @@
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 700
+#endif
+
 #include "http_server.h"
 
 #include <errno.h>
@@ -5,18 +9,38 @@
 #include <linux/limits.h>
 #include <poll.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/stat.h>
 
 #include "adresse_internet/adresse_internet.h"
 #include "http_parser/http_parser.h"
 #include "socket_tcp/socket_tcp.h"
 
+void handler(int num);
+
+SocketTCP *secoute;
+
 int main(void) {
+    signal(SIGHUP, SIG_IGN);
+    /*TODO: implémenter la gestion des signaux */
+    sigset_t mask;
+    sigfillset(&mask);
+    sigdelset(&mask, SIGINT);
+    sigdelset(&mask, SIGTERM);
+    sigprocmask(SIG_SETMASK, &mask, NULL);
+
+    struct sigaction sa;
+    sa.sa_handler = handler;
+    sigfillset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+
     if (run_server() != 0) {
         fprintf(stderr, "Erreur  serveur HTTP\n");  // Traiter erreurs
         return EXIT_FAILURE;
@@ -25,7 +49,7 @@ int main(void) {
 }
 
 int run_server(void) {
-    SocketTCP *secoute = malloc(sizeof *secoute);
+    secoute = malloc(sizeof *secoute);
     if (secoute == NULL) {
         return -1;
     }
@@ -71,13 +95,20 @@ void *treat_connection(void *arg) {
     fds[0].fd = sservice->sockfd;
     fds[0].events = POLLIN;
 
-    int ret = poll(fds, 1, 10000);  // Timeout 10s
+    int ret = poll(fds, 1, 30000);  // Timeout 10s
 
     if (ret == -1) {
         perror("poll");
     } else if (ret == 0) {
         // Timeout à gerer
-
+        if (writeSocketTCP(sservice, TIMEOUT_RESP, sizeof(TIMEOUT_RESP)) ==
+            -1) {
+            // Err
+        }
+        if (closeSocketTCP(sservice) == -1) {
+            // Err
+        }
+        pthread_exit(NULL);
     } else {
         if (fds[0].revents & POLLERR) {
             // Erreur sur la socket
@@ -116,6 +147,10 @@ void *treat_connection(void *arg) {
             r = treat_http_request(sservice, request);
             if (r != 0) {
                 // Err
+                if (closeSocketTCP(sservice) == -1) {
+                    // Err
+                }
+
                 pthread_exit(NULL);
             }
 
@@ -135,7 +170,8 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
     // traversée de répertoire.
     char *ret = strstr(request->request_line->uri, "../");
     if (ret != NULL) {
-        if (writeSocketTCP(sservice, FORBIDEN_RESP, sizeof(FORBIDEN_RESP)) == -1) {
+        if (writeSocketTCP(sservice, FORBIDEN_RESP, sizeof(FORBIDEN_RESP)) ==
+            -1) {
             closeSocketTCP(sservice);
             return -1;
         }
@@ -152,6 +188,20 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
     return 0;
 }
 
+void handler(int num) {
+    switch (num) {
+        case SIGINT:
+            if (secoute != NULL) {
+                closeSocketTCP(secoute);
+            }
+            exit(EXIT_SUCCESS);
+        case SIGTERM:
+            if (secoute != NULL) {
+                closeSocketTCP(secoute);
+            }
+            exit(EXIT_SUCCESS);
+    }
+}
 int treat_GET_request(SocketTCP *sservice, http_request *request) {
     if (sservice == NULL || request == NULL) {
         return ERR_NULL;
@@ -165,7 +215,6 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     }
     printf("path: %s\n", path);
 
-
     // On construit le header Date
     char date_name[] = "Date: ";
     char date_field[200];
@@ -175,8 +224,9 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
         perror("time");
     }
     localtime_r(&t, &readable_time);
-    
-    strftime(date_field, sizeof(date_field), "%a, %d %b %Y %T %Z", &readable_time);
+
+    strftime(date_field, sizeof(date_field), "%a, %d %b %Y %T %Z",
+             &readable_time);
     char date_header[strlen(date_name) + strlen(date_field) + strlen(CRLF) + 1];
     strncpy(date_header, date_name, sizeof(date_header) - 1);
     strcat(date_header, date_field);
@@ -190,10 +240,10 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
 
     // On construit la réponse
     char resp[HTTP_RESP_SIZE];
-    strncpy(resp, OK_RESP, sizeof(resp) -1);
+    strncpy(resp, OK_RESP, sizeof(resp) - 1);
     strncat(resp, date_header, sizeof(resp) - 1);
     strncat(resp, server_header, sizeof(resp) - 1);
-    //strncat(resp, "Content-Type: image/png\r\n", sizeof(resp) -1);
+    // strncat(resp, "Content-Type: image/png\r\n", sizeof(resp) -1);
 
     // On récupère le fichier à envoyer
     int index_fd;
@@ -201,7 +251,8 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     // Si le fichier demandé n'existe pas, on envoie un code 404
     if ((index_fd = open(path, O_RDONLY)) == -1) {
         if (errno == ENOENT) {
-            if (writeSocketTCP(sservice, NOT_FOUND_RESP, sizeof(NOT_FOUND_RESP)) == -1) {
+            if (writeSocketTCP(sservice, NOT_FOUND_RESP,
+                               sizeof(NOT_FOUND_RESP)) == -1) {
                 closeSocketTCP(sservice);
                 return -1;
             }
@@ -213,7 +264,7 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
             return -1;
         }
     }
-   
+
     // On récupère la taille du fichier
     struct stat filestat;
     if (fstat(index_fd, &filestat) == -1) {
@@ -223,10 +274,10 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     }
 
     char filesize[100];
-    snprintf(filesize, sizeof(filesize) -1, "%ld\r\n\r\n", filestat.st_size);
+    snprintf(filesize, sizeof(filesize) - 1, "%ld\r\n\r\n", filestat.st_size);
 
-    strncat(resp, "Content-Length: ", sizeof(resp) -1);
-    strncat(resp, filesize, sizeof(resp) -1);
+    strncat(resp, "Content-Length: ", sizeof(resp) - 1);
+    strncat(resp, filesize, sizeof(resp) - 1);
 
     char file[filestat.st_size + 1];
     ssize_t n;
@@ -237,10 +288,10 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
         closeSocketTCP(sservice);
         return -1;
     }
-    printf("bytes: %ld\n", (long) n); 
+    printf("bytes: %ld\n", (long)n);
 
     // On construit le corps de la réponse
-    char body[sizeof(resp) + sizeof(file) + (sizeof(CRLF)*2) + 1];
+    char body[sizeof(resp) + sizeof(file) + (sizeof(CRLF) * 2) + 1];
     strncpy(body, resp, sizeof(body) - 1);
     memcpy(&body[strlen(resp)], file, sizeof(file) - 1);
     strncat(body, CRLF, sizeof(body) - 1);
@@ -251,7 +302,7 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     printf("%s", body);
     if (writeSocketTCP(sservice, body, sizeof(body)) == -1) {
         closeSocketTCP(sservice);
-        return -1;        
+        return -1;
     }
     if (closeSocketTCP(sservice) == -1) {
         return -1;
