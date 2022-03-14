@@ -173,31 +173,32 @@ int parse_http_request(char *rawdata, http_request *request) {
     if (token == NULL) {
         return ERR_NULL;
     }
+
     // Traitement Request-Line
     // char *reqline = malloc(strlen(token) + 1);
-    char *reqline = malloc(256);
+    char *reqline = malloc(REQUEST_LINE_SIZE_MAX);
     if (reqline == NULL) {
-        return -1;
-    }
-    // printf("SIZEOF REQLINE %ld \n", sizeof(reqline));
-    // printf("STRLEN TOKEN %ld \n", strlen(token) + 1);
-    // strncpy(reqline, token, sizeof(*reqline));
-    // strncpy(reqline, token, strlen(token) + 1);
-    memcpy(reqline, token, 256);
-    if (parse_request_line(reqline, request) == -1) {
-        free(reqline);
-        return -1;
+        return ERR_MALLOC;
     }
 
+    memcpy(reqline, token, REQUEST_LINE_SIZE_MAX);
+    r = parse_request_line(reqline, request);
+    if (r != 0) {
+        free(reqline);
+        return r;
+    }
     free(reqline);
 
     // Traitement Headers
     token = strtok_r(NULL, CRLF, &saveptr);
     while (token != NULL) {
-        if (parse_header(token, request) == -1) {
+        r = parse_header(token, request);
+        if (r != 0) {
+            return r;
         }
         token = strtok_r(NULL, CRLF, &saveptr);
     }
+
     return 0;
 }
 
