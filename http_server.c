@@ -53,6 +53,7 @@ int run_server(void) {
     if (secoute == NULL) {
         return -1;
     }
+    initSocketTCP(secoute);
     if (creerSocketEcouteTCP(secoute, "localhost", 80) != 0) {
         fprintf(stderr, "Erreur creerSocketEcouteTCP. \n");
         closeSocketTCP(secoute);
