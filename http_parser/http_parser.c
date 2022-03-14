@@ -175,14 +175,8 @@ int parse_http_request(char *rawdata, http_request *request) {
     // Traitement Headers
     token = strtok_r(NULL, CRLF, &saveptr);
     while (token != NULL) {
-        char *header = malloc(strlen(token) + 1);
-        memcpy(header, token, strlen(token));
-        if (parse_header(header, request) == -1) {
-            free(header);
-            return -1;
+        if (parse_header(token, request) == -1) {
         }
-        free(header);
-        header = NULL;
         token = strtok_r(NULL, CRLF, &saveptr);
     }
     return 0;
