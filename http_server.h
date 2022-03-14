@@ -17,6 +17,7 @@
 #define NOT_FOUND_STATUS "404 Not Found"
 #define OK_STATUS "200 OK"
 #define TIMEOUT_STATUS "408 Request Timeout"
+#define BAD_REQUEST_STATUS "400 Bad Request"
 
 
 typedef struct status_line {

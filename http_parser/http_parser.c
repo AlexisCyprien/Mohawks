@@ -11,11 +11,11 @@
 
 int init_request(http_request *request) {
     if (request == NULL) {
-        return -1;
+        return ERR_NULL;
     }
-    struct request_line *reqline = malloc(256);
+    struct request_line *reqline = malloc(REQUEST_LINE_SIZE_MAX);
     if (reqline == NULL) {
-        return -1;
+        return ERR_MALLOC;
     }
 
     request->request_line = reqline;
@@ -36,14 +36,16 @@ int check_blank_line_request(char *rawdata) {
     // }
     // Double espace
     if (strstr(rawdata, ERR_SPACE) != NULL) {
-        return -1;
+        return ERR_REQUEST;
     }
     return 0;
 }
 
 int parse_request_line(char *rawdata, http_request *request) {
+    int r = 0;
     if (rawdata == NULL || request == NULL) {
-        return -1;
+        r = ERR_NULL;
+        goto parse_end;
     }
 
     // Verification de la chaine via la regex et découpage par groupe
@@ -51,24 +53,25 @@ int parse_request_line(char *rawdata, http_request *request) {
     regmatch_t pmatch[REGEX_RL_MATCH];
 
     if (regcomp(&regex, REGEX_REQ_LINE, REG_EXTENDED) != 0) {
-        regfree(&regex);
-        fprintf(stderr, "regcomp");
-        return -1;
+        fprintf(stderr, "%s : regcomp\n", __func__);
+        r = ERR_REGEX;
+        goto free_reg;
     }
     int errcode = regexec(&regex, rawdata, REGEX_RL_MATCH, pmatch, 0);
     if (errcode != 0) {
         char errbuf[20];
-        regfree(&regex);
         regerror(errcode, &regex, errbuf, 20);
         fprintf(stderr, "regexec : %s , %s \n", errbuf, __func__);
-        return -1;
+        r = ERR_REGEX;
+        goto free_reg;
     }
 
     // Ajout des champs de la chaine verifiee dans la structure request
     size_t method_len = (size_t)(pmatch[1].rm_eo - pmatch[1].rm_so);
     request->request_line->method = malloc(method_len + 1);
     if (request->request_line->method == NULL) {
-        return -1;
+        r = ERR_MALLOC;
+        goto free_reg;
     }
     strncpy(request->request_line->method, rawdata + pmatch[1].rm_so,
             method_len);
@@ -77,7 +80,8 @@ int parse_request_line(char *rawdata, http_request *request) {
     size_t uri_len = (size_t)(pmatch[2].rm_eo - pmatch[2].rm_so);
     request->request_line->uri = malloc(uri_len + 1);
     if (request->request_line->uri == NULL) {
-        return -1;
+        r = ERR_MALLOC;
+        goto free_reg;
     }
     strncpy(request->request_line->uri, rawdata + pmatch[2].rm_so, uri_len);
     *(request->request_line->uri + uri_len) = '\0';
@@ -85,26 +89,32 @@ int parse_request_line(char *rawdata, http_request *request) {
     size_t version_len = (size_t)(pmatch[3].rm_eo - pmatch[3].rm_so);
     request->request_line->version = malloc(version_len + 1);
     if (request->request_line->version == NULL) {
-        return -1;
+        r = ERR_MALLOC;
+        goto free_reg;
     }
     strncpy(request->request_line->version, rawdata + pmatch[3].rm_so,
             version_len);
     *(request->request_line->version + version_len) = '\0';
 
+free_reg:
     regfree(&regex);
-    return 0;
+parse_end:
+    return r;
 }
 
 int parse_header(char *rawdata, http_request *request) {
+    int r = 0;
     if (rawdata == NULL || request == NULL) {
-        return -1;
+        r = ERR_NULL;
+        goto parse_end;
     }
     regex_t regex;
     regmatch_t pmatch[REGEX_HD_MATCH];
 
     if (regcomp(&regex, REGEX_HEADERS, REG_EXTENDED) != 0) {
-        fprintf(stderr, "regcomp");
-        return -1;
+        fprintf(stderr, "%s : regcomp\n", __func__);
+        r = ERR_REGEX;
+        goto parse_end;
     }
 
     int errcode = regexec(&regex, rawdata, REGEX_HD_MATCH, pmatch, 0);
@@ -112,30 +122,39 @@ int parse_header(char *rawdata, http_request *request) {
         char errbuf[20];
         regerror(errcode, &regex, errbuf, 20);
         fprintf(stderr, "regexec : %s , %s \n", errbuf, __func__);
-        return -1;
+        r = ERR_REGEX;
+        goto free_reg;
     }
 
     size_t name_len = (size_t)(pmatch[1].rm_eo - pmatch[1].rm_so);
-    char *name = malloc(name_len);
+    char *name = malloc(name_len + 1);
     if (name == NULL) {
-        return -1;
+        r = ERR_MALLOC;
+        goto free_reg;
     }
     strncpy(name, rawdata + pmatch[1].rm_so, name_len);
-    *(request->request_line->method + name_len) = '\0';
+    *(name + name_len) = '\0';
 
     size_t field_len = (size_t)(pmatch[2].rm_eo - pmatch[1].rm_so);
-    char *field = malloc(field_len);
+    char *field = malloc(field_len + 1);
     if (field == NULL) {
-        return -1;
+        r = ERR_MALLOC;
+        goto free_malloc;
     }
     strncpy(field, rawdata + pmatch[2].rm_so, field_len);
-    *(request->request_line->method + name_len) = '\0';
+    *(field + field_len) = '\0';
 
-    if (add_headers(name, field, request) != 0) {
-        return -1;
-    }
+    r = add_headers(name, field, request);
 
-    return 0;
+    free(field);
+    field = NULL;
+free_malloc:
+    free(name);
+    name = NULL;
+free_reg:
+    regfree(&regex);
+parse_end:
+    return r;
 }
 
 int parse_http_request(char *rawdata, http_request *request) {
@@ -154,31 +173,32 @@ int parse_http_request(char *rawdata, http_request *request) {
     if (token == NULL) {
         return ERR_NULL;
     }
+
     // Traitement Request-Line
     // char *reqline = malloc(strlen(token) + 1);
-    char *reqline = malloc(256);
+    char *reqline = malloc(REQUEST_LINE_SIZE_MAX);
     if (reqline == NULL) {
-        return -1;
-    }
-    // printf("SIZEOF REQLINE %ld \n", sizeof(reqline));
-    // printf("STRLEN TOKEN %ld \n", strlen(token) + 1);
-    // strncpy(reqline, token, sizeof(*reqline));
-    // strncpy(reqline, token, strlen(token) + 1);
-    memcpy(reqline, token, 256);
-    if (parse_request_line(reqline, request) == -1) {
-        free(reqline);
-        return -1;
+        return ERR_MALLOC;
     }
 
+    memcpy(reqline, token, REQUEST_LINE_SIZE_MAX);
+    r = parse_request_line(reqline, request);
+    if (r != 0) {
+        free(reqline);
+        return r;
+    }
     free(reqline);
 
     // Traitement Headers
     token = strtok_r(NULL, CRLF, &saveptr);
     while (token != NULL) {
-        if (parse_header(token, request) == -1) {
+        r = parse_header(token, request);
+        if (r != 0) {
+            return r;
         }
         token = strtok_r(NULL, CRLF, &saveptr);
     }
+
     return 0;
 }
 
@@ -190,7 +210,7 @@ int add_headers(char *name, char *field, http_request *request) {
 
     struct header *header = malloc(sizeof(struct header));
     if (header == NULL) {
-        return -1;
+        return ERR_MALLOC;
     }
     header->name = malloc(strlen(name) + 1);
     if (header->name == NULL) {
