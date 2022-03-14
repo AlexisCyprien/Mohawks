@@ -188,20 +188,6 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
     return 0;
 }
 
-void handler(int num) {
-    switch (num) {
-        case SIGINT:
-            if (secoute != NULL) {
-                closeSocketTCP(secoute);
-            }
-            exit(EXIT_SUCCESS);
-        case SIGTERM:
-            if (secoute != NULL) {
-                closeSocketTCP(secoute);
-            }
-            exit(EXIT_SUCCESS);
-    }
-}
 int treat_GET_request(SocketTCP *sservice, http_request *request) {
     if (sservice == NULL || request == NULL) {
         return ERR_NULL;
@@ -233,8 +219,8 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     strcat(date_header, CRLF);
 
     // On construit le header Server
-    char serv_name[] = "Server: ";
-    char server_header[strlen(serv_name) + strlen(SERVER_NAME) + 1];
+    char serv_name[SERVER_HEADER_NAME_SIZE] = "Server: ";
+    char server_header[SERVER_HEADER_NAME_SIZE + strlen(SERVER_NAME) + 1];
     strncpy(server_header, serv_name, sizeof(server_header) - 1);
     strcat(server_header, SERVER_NAME);
 
@@ -309,4 +295,19 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     }
     printf("envoyé\n");
     return 0;
+}
+
+void handler(int num) {
+    switch (num) {
+        case SIGINT:
+            if (secoute != NULL) {
+                closeSocketTCP(secoute);
+            }
+            exit(EXIT_SUCCESS);
+        case SIGTERM:
+            if (secoute != NULL) {
+                closeSocketTCP(secoute);
+            }
+            exit(EXIT_SUCCESS);
+    }
 }
