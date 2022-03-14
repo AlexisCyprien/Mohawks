@@ -47,6 +47,7 @@ adresse_internet *adresse_internet_new(const char *nom, uint16_t port) {
     snprintf(p->service, strlen(strport) + 1, "%s", strport);
 
     freeaddrinfo(result);
+    result = NULL;
 
     return p;
 }
@@ -66,9 +67,6 @@ adresse_internet *adresse_internet_loopback(uint16_t port) {
 }
 
 void adresse_internet_free(adresse_internet *adresse) {
-    if (adresse == NULL) {
-        return;
-    }
     free(adresse);
     adresse = NULL;
 }

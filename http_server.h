@@ -17,6 +17,7 @@
 #define NOT_FOUND_RESP "HTTP/1.0 404 Not Found\r\n\r\n"
 #define OK_RESP "HTTP/1.0 200 OK\r\n"
 #define TIMEOUT_RESP "HTTP/1.1 408 Request Timeout\r\n\r\n"
+#define BAD_REQUEST_RESP "HTTP/1.0 400 Bad Request\r\n\r\n"
 
 int run_server(void);
 

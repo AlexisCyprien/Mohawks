@@ -53,7 +53,7 @@ int run_server(void) {
     if (secoute == NULL) {
         return -1;
     }
-    if (creerSocketEcouteTCP(secoute, "localhost", 80) != 0) {  // localhost ??
+    if (creerSocketEcouteTCP(secoute, "localhost", 80) != 0) {
         fprintf(stderr, "Erreur creerSocketEcouteTCP. \n");
         closeSocketTCP(secoute);
         return -1;
@@ -61,6 +61,7 @@ int run_server(void) {
 
     while (1) {
         SocketTCP *sservice = malloc(sizeof *sservice);
+        initSocketTCP(sservice);
         if (sservice == NULL) {
             closeSocketTCP(secoute);
             return -1;
@@ -95,7 +96,7 @@ void *treat_connection(void *arg) {
     fds[0].fd = sservice->sockfd;
     fds[0].events = POLLIN;
 
-    int ret = poll(fds, 1, 30000);  // Timeout 10s
+    int ret = poll(fds, 1, 30000);  // Timeout 30s
 
     if (ret == -1) {
         perror("poll");
@@ -124,6 +125,7 @@ void *treat_connection(void *arg) {
 
             if (readSocketTCP(sservice, buffer, buflen) == -1) {
                 // Err
+                free(buffer);
                 pthread_exit(NULL);
             }
             // Lecture requete
@@ -131,17 +133,31 @@ void *treat_connection(void *arg) {
             http_request *request = malloc(sizeof *request);
             if (request == NULL) {
                 // Err
+                if (closeSocketTCP(sservice) == -1) {
+                    // Err
+                }
+                free(buffer);
                 pthread_exit(NULL);
             }
             if (init_request(request) != 0) {
                 // Err
-                pthread_exit(NULL);
+                if (closeSocketTCP(sservice) == -1) {
+                    // Err
+                }
+                goto end_connection;
             }
 
             int r = parse_http_request(buffer, request);
             if (r != 0) {
                 // Err
-                pthread_exit(NULL);
+                if (writeSocketTCP(sservice, BAD_REQUEST_RESP,
+                                   sizeof(BAD_REQUEST_RESP)) == -1) {
+                    // Err
+                }
+                if (closeSocketTCP(sservice) == -1) {
+                    // Err
+                }
+                goto end_connection;
             }
 
             r = treat_http_request(sservice, request);
@@ -150,11 +166,12 @@ void *treat_connection(void *arg) {
                 if (closeSocketTCP(sservice) == -1) {
                     // Err
                 }
-
-                pthread_exit(NULL);
             }
-
+        end_connection:
+            free_http_request(request);
+            request = NULL;
             free(buffer);
+            buffer = NULL;
             // free etc
         }
     }
@@ -280,8 +297,9 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     char body[sizeof(resp) + sizeof(file) + (sizeof(CRLF) * 2) + 1];
     strncpy(body, resp, sizeof(body) - 1);
     memcpy(&body[strlen(resp)], file, sizeof(file) - 1);
-    strncat(body, CRLF, sizeof(body) - 1);
-    strncat(body, CRLF, sizeof(body) - 1);
+    memcpy(body + sizeof(resp) + sizeof(file) - 2, CRLF, strlen(CRLF));
+    memcpy(body + sizeof(resp) + sizeof(file) + strlen(CRLF) - 2, CRLF,
+           strlen(CRLF));
     body[sizeof(body) - 1] = 0;
 
     // On envoie la réponse
