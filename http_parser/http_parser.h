@@ -1,6 +1,13 @@
+/*                          HTTP_PARSER :
+ *     Bibliothèque C permettant le parsing de requête HTTP 1.x et la création
+ *     d'une structure permettant la manipulation de requête valide.
+ */
+
 #ifndef HTTP_PARSER__H
 #define HTTP_PARSER__H
 
+// request_line : structure pouvant contenir les champs d'une ligne de
+//                       requête HTTP
 typedef struct request_line request_line;
 
 typedef struct request_line {
@@ -9,6 +16,8 @@ typedef struct request_line {
     char *version;
 } request_line;
 
+// header : liste simplement chainée pouvant contenir les champs des headers
+//          d'une requête HTTP
 typedef struct header header;
 
 typedef struct header {
@@ -17,6 +26,7 @@ typedef struct header {
     header *next;
 } header;
 
+// http_request : structure contenant les champs d'une requête HTTP
 typedef struct http_request http_request;
 
 typedef struct http_request {
