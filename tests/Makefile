@@ -2,9 +2,10 @@ http_parser = ../http_parser/
 CC = gcc
 CPPFLAGS = -D_XOPEN_SOURCE=700 -D_FORTYFY_SOURCE=2
 CFLAGS = -std=c18 -Wpedantic -Wall -Wextra -Wconversion -Wwrite-strings \
--Werror -Wformat=2 -Wdate-time -fstack-protector-all -fpie -ftrapv -ld -O2 -g 
+-Werror -Wformat=2 -Wdate-time -fstack-protector-all -fpie -ftrapv -ld -O2 -g \
+-pthread
 #LDLIBS = -pthread -Wl,-z,relro,-z,now -fpie -lm 
-LDFLAGS = -lm -z relro -z now
+LDFLAGS = -lm -z relro -z now -pt
 VPATH=$(http_parser)
 objects = $(http_parser)http_parser.o unit_test.o
 executable = unit_test
