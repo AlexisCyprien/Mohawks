@@ -16,10 +16,13 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #include "adresse_internet/adresse_internet.h"
 #include "http_parser/http_parser.h"
 #include "socket_tcp/socket_tcp.h"
+#include "mime_type/mime_type.h"
+#include "directory_index/dir_index.h"
 
 void handler(int num);
 
@@ -73,7 +76,6 @@ int run_server(void) {
             closeSocketTCP(secoute);
             return -1;
         }
-        printf("Connexion acceptée\n");
         pthread_t th;
         if (pthread_create(&th, NULL, treat_connection, sservice) != 0) {
             fprintf(stderr, " Erreur \n");
@@ -218,6 +220,22 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
             if (treat_GET_request(sservice, request) == -1) {
                 return -1;
             }
+        } else {
+            http_response *response = malloc(sizeof(http_response));
+            if (response == NULL) {
+                return -1;
+            }
+            if (create_http_response(response, HTTP_VERSION, NOT_IMPLEMENTED_STATUS, NULL, 0) == -1) {
+                closeSocketTCP(sservice);
+                return -1;
+            }
+            if (send_http_response(sservice, response) == -1) {
+                free_http_response(response);
+                closeSocketTCP(sservice);
+                return -1;
+            }
+            free_http_response(response);
+            return 0;
         }
     }
     return 0;
@@ -231,10 +249,9 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     // On construit le chemin du fichier demandé
     char path[PATH_MAX] = DEFAULT_CONTENT_DIR;
     strncat(path, request->request_line->uri, sizeof(path) - 1);
-    if (strcmp(request->request_line->uri, "/") == 0) {
+    if (endswith(request->request_line->uri, "/")) {
         strncat(path, DEFAULT_INDEX, sizeof(path) - 1);
     }
-    printf("path: %s\n", path);
 
     // On récupère le fichier à envoyer
     int index_fd;
@@ -242,6 +259,12 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     // Si le fichier demandé n'existe pas, on envoie un code 404
     if ((index_fd = open(path, O_RDONLY)) == -1) {
         if (errno == ENOENT) {
+            // Le fichier demandé n'existe pas
+            if (endswith(request->request_line->uri, "/")) {
+                directory_index(request, path, sservice);
+                return 0;
+            }
+
             http_response *response = malloc(sizeof(http_response));
             if (response == NULL) {
                 return -1;
@@ -257,7 +280,25 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
             }
             free_http_response(response);
             return 0;
+        } else if (errno == EACCES) {
+            // L'accès au fichiuer demandé n'est pas autorisé 
+            http_response *response = malloc(sizeof(http_response));
+            if (response == NULL) {
+                return -1;
+            }
+            if (create_http_response(response, HTTP_VERSION, FORBIDEN_STATUS, NULL, 0) == -1) {
+                closeSocketTCP(sservice);
+                return -1;
+            }
+            if (send_http_response(sservice, response) == -1) {
+                free_http_response(response);
+                closeSocketTCP(sservice);
+                return -1;
+            }
+            free_http_response(response);
+            return 0;
         } else {
+            closeSocketTCP(sservice);
             return -1;
         }
     }
@@ -303,12 +344,17 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
 
     strftime(date_field, sizeof(date_field), "%a, %d %b %Y %T %Z",
              &readable_time);
-    add_response_header("Date: ", date_field, response);
+    add_response_header("Date", date_field, response);
 
     // On construit le header Server
-    add_response_header("Server: ", SERVER_NAME, response);
+    add_response_header("Server", SERVER_NAME, response);
 
-    add_response_header("Content-Length: ", filesize, response);
+    // On construit le header Content-Type
+    const char *mime = get_mime_type(path);
+    add_response_header("Content-Type", mime, response);
+
+    // On construit le header Content-Length
+    add_response_header("Content-Length", filesize, response);
 
     if (send_http_response(sservice, response) == -1) {
         free_http_response(response);
@@ -316,7 +362,7 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
         return -1;
     }
     free_http_response(response);
-    
+
     return 0;
 }
 
@@ -386,7 +432,7 @@ int send_http_response(SocketTCP *osocket, http_response *response) {
         return -1;
     }
     
-    char resp[4096];
+    char resp[HTTP_RESP_SIZE];
     char *version = response->status_line->version;
     char *status = response->status_line->status_code;
 
@@ -469,11 +515,12 @@ int add_response_header(const char *name, const char *field, http_response *resp
     if (header == NULL) {
         return -1;
     }
-    header->name = malloc(strlen(name) + 1);
+    header->name = malloc(strlen(name) + strlen(": ") + 1);
     if (header->name == NULL) {
         return ERR_MALLOC;
     }
     snprintf(header->name, strlen(name) + 1, "%s", name);
+    strncat(header->name, ": ", sizeof(header->name) -1);
     header->field = malloc(strlen(field) + 1);
     if (header->field == NULL) {
         return ERR_MALLOC;
@@ -492,3 +539,4 @@ int add_response_header(const char *name, const char *field, http_response *resp
 
     return 0;
 }
+

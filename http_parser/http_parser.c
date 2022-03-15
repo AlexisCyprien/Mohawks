@@ -110,7 +110,6 @@ int parse_header(char *rawdata, http_request *request) {
     }
     regex_t regex;
     regmatch_t pmatch[REGEX_HD_MATCH];
-
     if (regcomp(&regex, REGEX_HEADERS, REG_EXTENDED) != 0) {
         fprintf(stderr, "%s : regcomp\n", __func__);
         r = ERR_REGEX;
@@ -193,9 +192,6 @@ int parse_http_request(char *rawdata, http_request *request) {
     token = strtok_r(NULL, CRLF, &saveptr);
     while (token != NULL) {
         r = parse_header(token, request);
-        if (r != 0) {
-            return r;
-        }
         token = strtok_r(NULL, CRLF, &saveptr);
     }
 

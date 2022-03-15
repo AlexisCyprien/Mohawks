@@ -1,0 +1,16 @@
+</table>
+</body>
+
+<script>
+    const pathname = window.location.pathname;
+    const path = pathname.substring(0, pathname.lastIndexOf('/'));
+    const cur_dir = path.substring(path.lastIndexOf('/')+1, path.length) + '/';
+    const prec_dir = document.querySelector("#prec_dir");
+    if (cur_dir != "/") {
+        prec_dir.href = pathname.replace(cur_dir, "");
+    } else {
+        prec_dir.remove();
+    }
+    document.querySelector("#dirname").textContent = "Contenu de " + cur_dir;
+</script>
+</html>
