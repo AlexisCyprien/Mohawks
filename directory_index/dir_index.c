@@ -51,7 +51,6 @@ int directory_index(http_request *request, const char *path, SocketTCP *osocket)
 
                     char filepath[PATH_MAX*2];
                     snprintf(filepath, sizeof(filepath) -1, "%s/%s", dirpath, dir->d_name);
-                    printf("%s\n", filepath);
                     struct stat filestat;
                     if (stat(filepath, &filestat) == -1) {
                         perror("stat");
@@ -96,8 +95,6 @@ int directory_index(http_request *request, const char *path, SocketTCP *osocket)
     }
     close(foot_fd);
 
-    printf("%s\n", body);
-
     http_response *response = malloc(sizeof(http_response));
     if (response == NULL) {
         return -1;
@@ -113,7 +110,6 @@ int directory_index(http_request *request, const char *path, SocketTCP *osocket)
     }
     free_http_response(response);
 
-    printf("fin\n");
     return(0);
 }
 
