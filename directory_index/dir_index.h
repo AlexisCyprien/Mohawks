@@ -5,9 +5,11 @@
 #include "../socket_tcp/socket_tcp.h"
 
 #define DIR_INDEX_FORMAT \
-    "<tr><td><a href=\"%.20s%s\">%.20s%s</a></td><td>%.20s</td><td>%ld</td></tr>\r\n"
+    "<tr><td><a href=\"%s%s\">%s%s</a></td><td>%s</td><td>%s</td></tr>"
 
-// Indexe le répertoire demandé par l'utilisateur si celui ci ne contient
+#define INDEX_DATE_FORMAT "%d-%m-%Y %R"
+
+// Indèxe le répertoire demandé par l'utilisateur si celui ci ne contient
 // pas de fichier index.html
 int directory_index(http_request *request, const char *path, SocketTCP *osocket);
 
