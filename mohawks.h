@@ -24,6 +24,7 @@
 #define NOT_FOUND_STATUS "404 Not Found"
 #define TIMEOUT_STATUS "408 Request Timeout"
 
+#define INTERNAL_ERROR_STATUS "500 Internal Server Error"
 #define NOT_IMPLEMENTED_STATUS "501 Not Implemented"
 
 
@@ -64,6 +65,34 @@ int send_http_response(SocketTCP *osocket, http_response *response);
 // Libère la mémoire allouée par une structure http_response
 void free_http_response(http_response *response);
 
-int directory_index(http_request *request, const char *path, SocketTCP *osocket);
+// Envoie une réponse sans corps ni en-têtes
+int send_simple_response(SocketTCP *osocket, const char *status);
+
+// Envoie une réponse 200 OK
+int send_200_response(SocketTCP *osocket, http_response *response);
+
+// Envoie une réponse 301 Moved Permanently
+int send_301_response(SocketTCP *osocket, char *new_path);
+
+// Envoie une réponse 304 Not Modified
+int send_304_response(SocketTCP *osocket);
+
+// Envoie une réponse 400 Bad Request
+int send_400_response(SocketTCP *osocket);
+
+// Envoie une réponse 404 Not Found
+int send_404_response(SocketTCP *osocket);
+
+// Envoie une réponse 403 Forbidden
+int send_403_response(SocketTCP *osocket);
+
+// Envoie une réponse 408 Request Timeout
+int send_408_response(SocketTCP *osocket);
+
+// Envoie une réponse 500 Internal Server Error
+int send_500_response(SocketTCP *osocket);
+
+// Envoie une réponse 501 Not Implemented
+int send_501_response(SocketTCP *osocket);
 
 #endif  // MOHAWKS__H
