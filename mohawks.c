@@ -2,7 +2,7 @@
 #define _XOPEN_SOURCE 700
 #endif
 
-#include "http_server.h"
+#include "mohawks.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -216,6 +216,30 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
         return 0;
 
     } else {
+        char *ret = strstr(request->request_line->uri, ".");
+        if (ret == NULL) {
+            if (!endswith(request->request_line->uri, "/")) {
+                char new_uri[strlen(request->request_line->uri) + 2];
+                snprintf(new_uri, sizeof(new_uri), "%s/", request->request_line->uri);
+                http_response *response = malloc(sizeof(http_response));
+                if (response == NULL) {
+                    return -1;
+                }
+                if (create_http_response(response, HTTP_VERSION, REDIRECT_STATUS, NULL, 0) == -1) {
+                    closeSocketTCP(sservice);
+                    return -1;
+                }
+                add_response_header("Location", new_uri, response);
+                if (send_http_response(sservice, response) == -1) {
+                    free_http_response(response);
+                    closeSocketTCP(sservice);
+                    return -1;
+                }
+                free_http_response(response);
+                return 0;
+            }
+        }
+
         if (strcmp(request->request_line->method, "GET") == 0) {
             if (treat_GET_request(sservice, request) == -1) {
                 return -1;
@@ -252,6 +276,8 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     if (endswith(request->request_line->uri, "/")) {
         strncat(path, DEFAULT_INDEX, sizeof(path) - 1);
     }
+
+    
 
     // On récupère le fichier à envoyer
     int index_fd;

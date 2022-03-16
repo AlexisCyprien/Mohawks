@@ -1,3 +1,14 @@
-body{ text-align: center; }
+body{ 
+    text-align: center; 
+    margin: 0;
+}
 img{ width: 500px; }
 video{ width: 1000px; }
+header{
+    text-align: left;
+    background-color: #808080;
+    padding-left: 100px;
+    font-size: 2rem;
+    color: #FFFFFF;
+}
+h1{ margin-top: 0; }

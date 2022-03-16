@@ -120,7 +120,7 @@ int parse_header(char *rawdata, http_request *request) {
     if (errcode != 0) {
         char errbuf[20];
         regerror(errcode, &regex, errbuf, 20);
-        fprintf(stderr, "regexec : %s , %s \n", errbuf, __func__);
+        ///fprintf(stderr, "regexec : %s , %s \n", errbuf, __func__);
         r = ERR_REGEX;
         goto free_reg;
     }

@@ -1,5 +1,5 @@
-#ifndef HTTP_SERVER__H
-#define HTTP_SERVER__H
+#ifndef MOHAWKS__H
+#define MOHAWKS__H
 
 #include "http_parser/http_parser.h"
 #include "socket_tcp/socket_tcp.h"
@@ -16,6 +16,7 @@
 
 #define OK_STATUS "200 OK"
 
+#define REDIRECT_STATUS "301 Moved Permanently"
 #define NOT_MODIFIED_STATUS "304 Not Modified"
 
 #define BAD_REQUEST_STATUS "400 Bad Request"
@@ -65,4 +66,4 @@ void free_http_response(http_response *response);
 
 int directory_index(http_request *request, const char *path, SocketTCP *osocket);
 
-#endif  // HTTP_SERVER__H
+#endif  // MOHAWKS__H

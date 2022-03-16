@@ -18,7 +18,7 @@
 #include <time.h>
 #include <sys/stat.h>
 
-#include "../http_server.h"
+#include "../mohawks.h"
 #include "../socket_tcp/socket_tcp.h"
 
 int directory_index(http_request *request, const char *path, SocketTCP *osocket) {
