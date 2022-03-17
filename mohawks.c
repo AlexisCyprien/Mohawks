@@ -513,6 +513,9 @@ int send_200_response(SocketTCP *osocket, http_response *response) {
              &readable_time);
     add_response_header("Date", date, response);
 
+    // On ajoute le header Allow
+    add_response_header("Allow", "GET, HEAD", response);
+
     return send_http_response(osocket, response);
 }
 
