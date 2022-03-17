@@ -459,15 +459,13 @@ int add_response_header(const char *name, const char *field, http_response *resp
     }
     // On copie le champs dans le header
     snprintf(header->field, strlen(field) + 1, "%s", field);
-    header->next = NULL;
 
-    // On ajoute le header en queue de la liste chaînée de la réponse
+    // On ajoute le header en tête de la liste chaînée de la réponse
     if (*pp == NULL) {
+        header->next = NULL;
         *pp = header;
     } else {
-        while ((*pp)->next != NULL) {
-            pp = &((*pp)->next);
-        }
+        header->next = (*pp)->next;
         (*pp)->next = header;
     }
 
@@ -495,9 +493,14 @@ int send_simple_response(SocketTCP *osocket, const char *status) {
 
 
 int send_200_response(SocketTCP *osocket, http_response *response) {
+    // On ajoute le header Content-Length
+    char size[sizeof(unsigned long) +1];
+    snprintf(size, sizeof(size), "%ld", response->body_size);
+    add_response_header("Content-Length", size, response);
+
     // On ajoute le header Server
     add_response_header("Server", SERVER_NAME, response);
-    
+
     // On ajoute le header Date
     time_t t;
     struct tm readable_time;
@@ -509,11 +512,6 @@ int send_200_response(SocketTCP *osocket, http_response *response) {
     strftime(date, sizeof(date), DEFAULT_DATE_FORMAT,
              &readable_time);
     add_response_header("Date", date, response);
-
-    // On ajoute le header Content-Length
-    char size[sizeof(unsigned long) +1];
-    snprintf(size, sizeof(size), "%ld", response->body_size);
-    add_response_header("Content-Length", size, response);
 
     return send_http_response(osocket, response);
 }
