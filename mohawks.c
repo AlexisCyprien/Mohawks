@@ -252,6 +252,10 @@ int treat_GET_HEAD_request(SocketTCP *sservice, http_request *request) {
     char filesize[100];
     snprintf(filesize, sizeof(filesize) - 1, "%ld", filestat.st_size);
 
+    if (is_modified_since(request, filestat.st_mtim.tv_sec)) {
+        return send_304_response(sservice);
+    }
+
     // On construit la réponse selon la méthode de la requête
     http_response *response = malloc(sizeof(http_response));
     if (response == NULL) {
@@ -503,15 +507,21 @@ int send_200_response(SocketTCP *osocket, http_response *response) {
 
     // On ajoute le header Date
     time_t t;
-    struct tm readable_time;
     if (time(&t) == (time_t)-1) {
         perror("time");
     }
+    struct tm readable_time;
     gmtime_r(&t, &readable_time);
     char date[200];
-    strftime(date, sizeof(date), DEFAULT_DATE_FORMAT,
-             &readable_time);
+    strftime(date, sizeof(date), HTTP_DATE_FORMAT, &readable_time);
     add_response_header("Date", date, response);
+
+    // On ajoute le header Expires
+    t += EXPIRE_TIME;
+    gmtime_r(&t, &readable_time);
+    char expire_date[200];
+    strftime(expire_date, sizeof(expire_date), HTTP_DATE_FORMAT, &readable_time);
+    add_response_header("Expires", expire_date, response);
 
     // On ajoute le header Allow
     add_response_header("Allow", "GET, HEAD", response);
@@ -571,4 +581,21 @@ int send_500_response(SocketTCP *osocket) {
 
 int send_501_response(SocketTCP *osocket) {
     return send_simple_response(osocket, NOT_IMPLEMENTED_STATUS);
+}
+
+bool is_modified_since(http_request *request, time_t mod_date) {
+    // On cherche le header If-Modified-Since dans la requête
+    header **pp = &(request->headers);
+    while (*pp != NULL) {
+        if (strcmp((*pp)->name, "If-Modified-Since") == 0) {
+            // On convertit la dâte du header en time_t
+            struct tm tm;
+            strptime((*pp)->field, HTTP_DATE_FORMAT, &tm);
+            time_t request_date = mktime(&tm);
+
+            return (mod_date > request_date);
+        }
+        pp = &((*pp)->next);
+    }
+    return false;
 }
