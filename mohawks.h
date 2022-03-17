@@ -12,7 +12,7 @@
 
 #define HTTP_RESP_SIZE 4096
 
-#define HTTP_VERSION "HTTP/1.0 "
+#define HTTP_VERSION "HTTP/1.0"
 
 #define OK_STATUS "200 OK"
 
@@ -26,7 +26,6 @@
 
 #define INTERNAL_ERROR_STATUS "500 Internal Server Error"
 #define NOT_IMPLEMENTED_STATUS "501 Not Implemented"
-
 
 typedef struct status_line {
     char *version;
@@ -50,7 +49,7 @@ void *treat_connection(void *arg);
 int treat_http_request(SocketTCP *sservice, http_request *request);
 
 // Traite la requète de méthode GET
-int treat_GET_request(SocketTCP *sservice, http_request *request);
+int treat_GET_HEAD_request(SocketTCP *sservice, http_request *request);
 
 // Remplie la stucture http_response avec la version, le status, le corps et la taille du corps
 int create_http_response(http_response *response, const char *version, 

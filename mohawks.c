@@ -196,16 +196,15 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
             }
         }
 
-        if (strcmp(request->request_line->method, "GET") == 0) {
-            return treat_GET_request(sservice, request);
-        } else {
-            return send_501_response(sservice);
-        }
+        if (strcmp(request->request_line->method, "GET") == 0 ||
+            strcmp(request->request_line->method, "HEAD") == 0) {
+            return treat_GET_HEAD_request(sservice, request);
+        } else return send_501_response(sservice);
     }
     return 0;
 }
 
-int treat_GET_request(SocketTCP *sservice, http_request *request) {
+int treat_GET_HEAD_request(SocketTCP *sservice, http_request *request) {
     if (sservice == NULL || request == NULL) {
         return ERR_NULL;
     }
@@ -253,26 +252,33 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
     char filesize[100];
     snprintf(filesize, sizeof(filesize) - 1, "%ld", filestat.st_size);
 
-    // On lit les données du fichier
-    char file[filestat.st_size + 1];
-    ssize_t n;
-    if ((n = read(index_fd, file, sizeof(file))) == -1) {
-        return -1;
-    }
-    if (close(index_fd) == -1) {
-        return -1;
-    }
-    file[sizeof(file) - 1] = 0;
-
-    // On construit la réponse
+    // On construit la réponse selon la méthode de la requête
     http_response *response = malloc(sizeof(http_response));
     if (response == NULL) {
         return -1;
     }
-    if (create_http_response(response, HTTP_VERSION, OK_STATUS,
-            file, (unsigned long) filestat.st_size) == -1) {
-        return -1;
+    if (strcmp(request->request_line->method, "HEAD") == 0) {
+        if (create_http_response(response, HTTP_VERSION, OK_STATUS,
+                NULL, (unsigned long) filestat.st_size) == -1) {
+            return -1;
+        }
+    } else {
+        // On lit les données du fichier
+        char file[filestat.st_size + 1];
+        if (read(index_fd, file, sizeof(file)) == -1) {
+            return -1;
+        }
+        if (close(index_fd) == -1) {
+            return -1;
+        }
+        file[sizeof(file) - 1] = 0;
+
+        if (create_http_response(response, HTTP_VERSION, OK_STATUS,
+                file, (unsigned long) filestat.st_size) == -1) {
+            return -1;
+        }
     }
+
 
     // On construit le header Content-Type
     const char *mime = get_mime_type(path);
@@ -345,12 +351,8 @@ int create_http_response(http_response *response, const char *version,
                 return -1;
             }
             memcpy(response->body, body, body_size);
-            response->body_size = body_size;
-    } else { 
-        response->body = NULL; 
-        response->body_size = 0;    
-    }
-
+    } else response->body = NULL;
+    response->body_size = body_size;
     return 0;
 }
 
@@ -367,7 +369,7 @@ int send_http_response(SocketTCP *osocket, http_response *response) {
     char *status = response->status_line->status_code;
 
     // On ajoute la version http
-    strncpy(resp, version, sizeof(resp) - 1);
+    snprintf(resp, strlen(version) + 2, "%s ", version);
 
     // On ajoute le status
     strncat(resp, status, sizeof(resp) -1);
@@ -449,7 +451,7 @@ int add_response_header(const char *name, const char *field, http_response *resp
         return ERR_MALLOC;
     }
     // On copie le nom dans le header
-    snprintf(header->name, strlen(name) + 2, "%s: ", name);
+    snprintf(header->name, strlen(name) + 3, "%s: ", name);
 
     header->field = malloc(strlen(field) + 1);
     if (header->field == NULL) {

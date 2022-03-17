@@ -153,9 +153,15 @@ int directory_index(http_request *request, const char *path, SocketTCP *osocket)
     if (response == NULL) {
         return -1;
     }
-    // On créé notre réponse
-    if (create_http_response(response, HTTP_VERSION, OK_STATUS, body, strlen(body)) == -1) {
-        return -1;
+    // On créé notre réponse selon le type de méthode de la requête
+    if (strcmp(request->request_line->method, "HEAD") == 0) {
+        if (create_http_response(response, HTTP_VERSION, OK_STATUS, NULL, strlen(body)) == -1) {
+            return -1;
+        }
+    } else {
+        if (create_http_response(response, HTTP_VERSION, OK_STATUS, body, strlen(body)) == -1) {
+            return -1;
+        }
     }
     // On ajoute le header Content-Type
     add_response_header("Content-Type", "text/html", response);
