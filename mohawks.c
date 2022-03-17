@@ -502,7 +502,7 @@ int send_200_response(SocketTCP *osocket, http_response *response) {
     if (time(&t) == (time_t)-1) {
         perror("time");
     }
-    localtime_r(&t, &readable_time);
+    gmtime_r(&t, &readable_time);
     char date[200];
     strftime(date, sizeof(date), DEFAULT_DATE_FORMAT,
              &readable_time);
