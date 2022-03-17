@@ -5,8 +5,8 @@ Simple Serveur HTTP/1.0 in C.
 ## Install & Usage
 
 ```bash
-git clone https://github.com/AlexisCyprien/Serveur_Http.git 
-cd Serveur_Http
+git clone https://github.com/AlexisCyprien/Mohawks.git 
+cd Mohawks
 make
 sudo ./mohawks
 ```
