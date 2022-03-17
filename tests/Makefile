@@ -5,7 +5,7 @@ CFLAGS = -std=c18 -Wpedantic -Wall -Wextra -Wconversion -Wwrite-strings \
 -Werror -Wformat=2 -Wdate-time -fstack-protector-all -fpie -ftrapv -ld -O2 -g \
 -pthread
 #LDLIBS = -pthread -Wl,-z,relro,-z,now -fpie -lm 
-LDFLAGS = -lm -z relro -z now -pt
+LDFLAGS = -lm -z relro -z now -pthread
 VPATH=$(http_parser)
 objects = $(http_parser)http_parser.o unit_test.o
 executable = unit_test
