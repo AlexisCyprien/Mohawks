@@ -224,12 +224,11 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
         switch (errno) {
         // Le fichier demandé n'existe pas
         case ENOENT :
-            // Si l'uri demandé est un dossier, on lance
-            // l'indexation
+            // Si l'uri demandé est un dossier, on lance l'indexation
             if (endswith(request->request_line->uri, "/")) {
-                if (directory_index(request, path, sservice) == 0) {
-                    return 0;
-                }
+                if (directory_index(request, path, sservice) == -1) {
+                    return send_500_response(sservice);
+                } else return 0;
             }
 
             // Sinon on envoie un code 404 Not Found
@@ -242,6 +241,7 @@ int treat_GET_request(SocketTCP *sservice, http_request *request) {
             return send_403_response(sservice);
             break;
         default:
+            return send_500_response(sservice);
             break;
         }
     }
@@ -395,16 +395,17 @@ int send_http_response(SocketTCP *osocket, http_response *response) {
     strncat(resp, CRLF, sizeof(resp) -1);
 
     // On envoie d'abord l'en-tête de la réponse
-    if (writeSocketTCP(osocket, resp, strlen(resp)) == -1){
-        return -1;
-    }
-    // Puis le corps de la réponse
-    if (writeSocketTCP(osocket, response->body, response->body_size) == -1){
+    if (writeSocketTCP(osocket, resp, strlen(resp)) == -1) {
         return -1;
     }
     if (response->body != NULL) {
+        // Puis le corps de la réponse
+        if (writeSocketTCP(osocket, response->body, response->body_size) == -1) {
+            return -1;
+        }
+
         for (int i = 0; i < 2; ++i) {
-            if (writeSocketTCP(osocket, CRLF, strlen(CRLF)) == -1){
+            if (writeSocketTCP(osocket, CRLF, strlen(CRLF)) == -1) {
                 return -1;
             }
         }

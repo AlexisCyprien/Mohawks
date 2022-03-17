@@ -34,14 +34,14 @@ int directory_index(http_request *request, const char *path, SocketTCP *osocket)
     // On ouvre notre header html
     int head_fd;
     if ((head_fd = open("./directory_index/header.html", O_RDONLY)) == -1) {
-        return send_500_response(osocket);
+        return -1;
     }
     // On ajoute son contenu au corps de la réponse
     if (read(head_fd, body, sizeof(body)) == -1) {
-        return send_500_response(osocket);
+        return -1;
     }
-    if (close(head_fd) == -1){
-        return send_500_response(osocket);
+    if (close(head_fd) == -1) {
+        return -1;
     }
 
     // Pour des raisons de sécurité, la gestion du bouton de retour dans le
@@ -67,14 +67,10 @@ int directory_index(http_request *request, const char *path, SocketTCP *osocket)
             // Le dossier n'existe pas ou n'est pas un dossier
             return send_404_response(osocket);
             break;
-        case EMFILE :
-        case ENFILE :
-        case ENOMEM :
+        default :
             // Nb de descripteurs de fichiers maximum atteint ou
-            // plus de mémoire disponnible
+            // plus de mémoire disponnible, etc
             return send_500_response(osocket);
-            break;
-        default:
             break;
         }
     }
@@ -136,21 +132,21 @@ int directory_index(http_request *request, const char *path, SocketTCP *osocket)
             }
         }
         if (closedir(d) == -1) {
-            return send_500_response(osocket);
+            return -1;
         }
     }
     
     // On ouvre notre footer html
     int foot_fd;
     if ((foot_fd = open("./directory_index/footer.html", O_RDONLY)) == -1) {
-        return send_500_response(osocket);
+        return -1;
     }
     // On ajoute son contenu à la suite de notre corps de réponse
     if (read(foot_fd, body + strlen(body), sizeof(body)) == -1) {
-        return send_500_response(osocket);
+        return -1;
     }
     if (close(foot_fd) == -1) {
-        return send_500_response(osocket);
+        return -1;
     }
 
     http_response *response = malloc(sizeof(http_response));
