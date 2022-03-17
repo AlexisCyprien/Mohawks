@@ -21,17 +21,17 @@ int main(void) {
     }
     TEST_END;
 
-    // TEST_FUN(test_parse_request_line());
-    // memset(test_request, 0, sizeof test_request);
-    // strncpy(test_request, BAD_REQUEST_LINE, strlen(BAD_REQUEST_LINE) + 1);
-    // r = test_parse_request_line(test_request);
-    // if (r != 0) {
-    //     printf("Test réussis ! \n");
-    //     printf("%s \n", err_to_string(r));
-    // } else {
-    //     printf("Test raté ! \n");
-    // }
-    // TEST_END;
+    TEST_FUN(test_parse_request_line());
+    memset(test_request, 0, sizeof test_request);
+    strncpy(test_request, BAD_REQUEST_LINE, strlen(BAD_REQUEST_LINE) + 1);
+    r = test_parse_request_line(test_request);
+    if (r != 0) {
+        printf("Test réussis ! \n");
+        printf("%s \n", err_to_string(r));
+    } else {
+        printf("Test raté ! \n");
+    }
+    TEST_END;
     return EXIT_SUCCESS;
 }
 
@@ -47,13 +47,12 @@ int test_parse_request_line(char *rawdata) {
         r = ERR_MALLOC;
         goto tested;
     }
-    memset(phttp, 0, sizeof *phttp);
-
-    phttp->request_line = malloc(sizeof phttp->request_line);
-    if (phttp->request_line == NULL) {
-        r = ERR_MALLOC;
-        goto tested;
-    }
+    init_request(phttp);
+    // phttp->request_line = malloc(sizeof phttp->request_line);
+    // if (phttp->request_line == NULL) {
+    //     r = ERR_MALLOC;
+    //     goto tested;
+    // }
     r = parse_request_line(rawdata, phttp);
     if (r == 0) {
         printf("Method : %s \n", phttp->request_line->method);

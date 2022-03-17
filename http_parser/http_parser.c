@@ -19,6 +19,9 @@ int init_request(http_request *request) {
     }
 
     request->request_line = reqline;
+    request->request_line->method = NULL;
+    request->request_line->uri = NULL;
+    request->request_line->version = NULL;
     request->headers = NULL;
     request->body = NULL;
 
@@ -120,7 +123,7 @@ int parse_header(char *rawdata, http_request *request) {
     if (errcode != 0) {
         char errbuf[20];
         regerror(errcode, &regex, errbuf, 20);
-        ///fprintf(stderr, "regexec : %s , %s \n", errbuf, __func__);
+        /// fprintf(stderr, "regexec : %s , %s \n", errbuf, __func__);
         r = ERR_REGEX;
         goto free_reg;
     }
@@ -204,7 +207,7 @@ int add_headers(char *name, char *field, http_request *request) {
     }
     header **pp = &(request->headers);
 
-    struct header *header = malloc(sizeof(struct header));
+    struct header *header = malloc(sizeof *header);
     if (header == NULL) {
         return ERR_MALLOC;
     }

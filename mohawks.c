@@ -4,6 +4,7 @@
 
 #include "mohawks.h"
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/limits.h>
@@ -16,13 +17,12 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
-#include <dirent.h>
 
 #include "adresse_internet/adresse_internet.h"
-#include "http_parser/http_parser.h"
-#include "socket_tcp/socket_tcp.h"
-#include "mime_type/mime_type.h"
 #include "directory_index/dir_index.h"
+#include "http_parser/http_parser.h"
+#include "mime_type/mime_type.h"
+#include "socket_tcp/socket_tcp.h"
 
 void handler(int num);
 
@@ -159,15 +159,17 @@ void *treat_connection(void *arg) {
             if (treat_http_request(sservice, request) == -1) {
                 send_500_response(sservice);
             }
-            closeSocketTCP(sservice);
-            pthread_exit(NULL);
-            
+            // closeSocketTCP(sservice);
+            // pthread_exit(NULL);
+
         end_connection:
             free_http_request(request);
             request = NULL;
             free(buffer);
             buffer = NULL;
             // free etc
+            closeSocketTCP(sservice);
+            pthread_exit(NULL);
         }
     }
     pthread_exit(NULL);
@@ -190,7 +192,8 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
             // Une redirection est envoyée avec l'uri corrigée.
             if (!endswith(request->request_line->uri, "/")) {
                 char new_uri[strlen(request->request_line->uri) + 2];
-                snprintf(new_uri, sizeof(new_uri), "%s/", request->request_line->uri);
+                snprintf(new_uri, sizeof(new_uri), "%s/",
+                         request->request_line->uri);
 
                 return send_301_response(sservice, new_uri);
             }
@@ -230,9 +233,9 @@ int treat_GET_HEAD_request(SocketTCP *sservice, http_request *request) {
                 } else return 0;
             }
 
-            // Sinon on envoie un code 404 Not Found
-            return send_404_response(sservice);
-            break;
+                // Sinon on envoie un code 404 Not Found
+                return send_404_response(sservice);
+                break;
 
         // Pas autorisé à accéder à cette entrée
         case EACCES :
@@ -297,7 +300,6 @@ int treat_GET_HEAD_request(SocketTCP *sservice, http_request *request) {
     return 0;
 }
 
-
 void handler(int num) {
     switch (num) {
         case SIGINT:
@@ -319,30 +321,30 @@ void handler(int num) {
     }
 }
 
-
-int create_http_response(http_response *response, const char *version, 
-        const char *status, const char *body, unsigned long body_size) {
+int create_http_response(http_response *response, const char *version,
+                         const char *status, const char *body,
+                         unsigned long body_size) {
     if (response == NULL || version == NULL || status == NULL) {
         return -1;
     }
 
     // On construit la ligne de status de la réponse
-    status_line *status_line = malloc(sizeof(struct status_line));
+    status_line *status_line = malloc(sizeof *status_line);
     if (status_line == NULL) {
         return -1;
     }
-    status_line->version = malloc(sizeof(version));
+    status_line->version = malloc(strlen(version) + 1);
     if (status_line->version == NULL) {
         return -1;
     }
-    status_line->status_code = malloc(sizeof(status));
+    status_line->status_code = malloc(strlen(status) + 1);
     if (status_line->status_code == NULL) {
         return -1;
     }
 
     // On y met la version de HTTP et le code de status
-    memcpy(status_line->version, version, strlen(version));
-    memcpy(status_line->status_code, status, strlen(status));
+    memcpy(status_line->version, version, strlen(version) + 1);
+    memcpy(status_line->status_code, status, strlen(status) + 1);
     response->status_line = status_line;
 
     // On initialise les headers de la réponse
@@ -360,12 +362,11 @@ int create_http_response(http_response *response, const char *version,
     return 0;
 }
 
-
 int send_http_response(SocketTCP *osocket, http_response *response) {
     if (osocket == NULL || response == NULL) {
         return -1;
     }
-    
+
     // On créer notre buffer de réponse, il contiendra la ligne de status
     // et les en-têtes
     char resp[HTTP_RESP_SIZE];
@@ -376,9 +377,9 @@ int send_http_response(SocketTCP *osocket, http_response *response) {
     snprintf(resp, strlen(version) + 2, "%s ", version);
 
     // On ajoute le status
-    strncat(resp, status, sizeof(resp) -1);
-    strncat(resp, CRLF, sizeof(resp) -1);
-    
+    strncat(resp, status, sizeof(resp) - 1);
+    strncat(resp, CRLF, sizeof(resp) - 1);
+
     // On ajoute les headers
     if (response->headers != NULL) {
         header **pp = &(response->headers);
@@ -387,18 +388,18 @@ int send_http_response(SocketTCP *osocket, http_response *response) {
             char *field = (*pp)->field;
 
             // On ajoute le nom du header
-            strncat(resp, name, sizeof(resp) -1);
+            strncat(resp, name, sizeof(resp) - 1);
 
             // On ajoute le champ du header
-            strncat(resp, field, sizeof(resp) -1);
+            strncat(resp, field, sizeof(resp) - 1);
 
-            strncat(resp, CRLF, sizeof(resp) -1);
-            
+            strncat(resp, CRLF, sizeof(resp) - 1);
+
             pp = &((*pp)->next);
         }
     }
 
-    strncat(resp, CRLF, sizeof(resp) -1);
+    strncat(resp, CRLF, sizeof(resp) - 1);
 
     // On envoie d'abord l'en-tête de la réponse
     if (writeSocketTCP(osocket, resp, strlen(resp)) == -1) {
@@ -415,11 +416,10 @@ int send_http_response(SocketTCP *osocket, http_response *response) {
                 return -1;
             }
         }
-    }   
+    }
 
     return 0;
 }
-
 
 void free_http_response(http_response *response) {
     if (response == NULL) {
@@ -439,8 +439,8 @@ void free_http_response(http_response *response) {
     free(response);
 }
 
-
-int add_response_header(const char *name, const char *field, http_response *response) {
+int add_response_header(const char *name, const char *field,
+                        http_response *response) {
     if (name == NULL || field == NULL || response == NULL) {
         return ERR_NULL;
     }
@@ -476,7 +476,6 @@ int add_response_header(const char *name, const char *field, http_response *resp
     return 0;
 }
 
-
 int send_simple_response(SocketTCP *osocket, const char *status) {
     http_response *response = malloc(sizeof(struct http_response));
     if (response == NULL) {
@@ -495,10 +494,9 @@ int send_simple_response(SocketTCP *osocket, const char *status) {
     return 0;
 }
 
-
 int send_200_response(SocketTCP *osocket, http_response *response) {
     // On ajoute le header Content-Length
-    char size[sizeof(unsigned long) +1];
+    char size[sizeof(unsigned long) + 1];
     snprintf(size, sizeof(size), "%ld", response->body_size);
     add_response_header("Content-Length", size, response);
 
@@ -529,13 +527,13 @@ int send_200_response(SocketTCP *osocket, http_response *response) {
     return send_http_response(osocket, response);
 }
 
-
 int send_301_response(SocketTCP *osocket, char *new_path) {
     http_response *response = malloc(sizeof(struct http_response));
     if (response == NULL) {
         return -1;
     }
-    if (create_http_response(response, HTTP_VERSION, REDIRECT_STATUS, NULL, 0) == -1) {
+    if (create_http_response(response, HTTP_VERSION, REDIRECT_STATUS, NULL,
+                             0) == -1) {
         free_http_response(response);
         return -1;
     }
@@ -550,26 +548,21 @@ int send_301_response(SocketTCP *osocket, char *new_path) {
     return 0;
 }
 
-
 int send_304_response(SocketTCP *osocket) {
     return send_simple_response(osocket, NOT_MODIFIED_STATUS);
 }
-
 
 int send_400_response(SocketTCP *osocket) {
     return send_simple_response(osocket, BAD_REQUEST_STATUS);
 }
 
-
 int send_404_response(SocketTCP *osocket) {
     return send_simple_response(osocket, NOT_FOUND_STATUS);
 }
 
-
 int send_403_response(SocketTCP *osocket) {
     return send_simple_response(osocket, FORBIDEN_STATUS);
 }
-
 
 int send_408_response(SocketTCP *osocket) {
     return send_simple_response(osocket, TIMEOUT_STATUS);
