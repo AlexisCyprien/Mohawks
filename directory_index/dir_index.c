@@ -49,7 +49,7 @@ int directory_index(http_request *request, const char *path, SocketTCP *osocket)
     // Le retour dans un dossier en dessous de DEFAULT_CONTENT_DIR est de toute
     // façon impossible sur notre serveur.
     if (strcmp(request->request_line->uri, "/") != 0) {
-        const char *prev_dir = "<tr><td><a id=\"prev_dir\" href=\"../\">&larrhk;</a></td></tr>"; 
+        const char *prev_dir = "<tr><td><a id=\"prev_dir\" href=\"../\">&larrhk;</a></td></tr>\r\n"; 
         strncat(body, prev_dir, sizeof(body) - 1);
     }
 
@@ -119,9 +119,21 @@ int directory_index(http_request *request, const char *path, SocketTCP *osocket)
 
                     // Sinon, c'est un fichier
                     } else {
+                        // On converti la taille dans l'unité souhaité
+                        double convert_size = ((double) filestat.st_size) / 1000;
+                        const char *unit = "ko";
+
+                        if (convert_size > 1000) {
+                            convert_size /= 1000;
+                            unit = "Mo";
+                        }
+                        if (convert_size > 1000) {
+                            convert_size /= 1000;
+                            unit = "Go";
+                        }
                         // On transforme sa taille en chaîne de caractère
-                        char size[sizeof(unsigned long) + 1];
-                        snprintf(size, sizeof(size), "%ld", (unsigned long) filestat.st_size);
+                        char size[sizeof(unsigned long) + strlen(unit) + 1];
+                        snprintf(size, sizeof(size), "%.2lf%s", convert_size, unit);
 
                         // On remplie la nouvelle ligne du tableau
                         snprintf(new_tr, sizeof(new_tr), DIR_INDEX_FORMAT, 

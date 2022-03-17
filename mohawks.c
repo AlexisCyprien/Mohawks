@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 #include "adresse_internet/adresse_internet.h"
 #include "directory_index/dir_index.h"
@@ -263,40 +264,58 @@ int treat_GET_HEAD_request(SocketTCP *sservice, http_request *request) {
     if (response == NULL) {
         return -1;
     }
+
+    unsigned long len = (unsigned long) filestat.st_size;
     if (strcmp(request->request_line->method, "HEAD") == 0) {
-        if (create_http_response(response, HTTP_VERSION, OK_STATUS,
-                NULL, (unsigned long) filestat.st_size) == -1) {
+        if (create_http_response(response, HTTP_VERSION, OK_STATUS, NULL, len) == -1) {
             return -1;
         }
-    } else {
-        // On lit les données du fichier
-        char file[filestat.st_size + 1];
-        if (read(index_fd, file, sizeof(file)) == -1) {
+
+        // On construit le header Content-Type
+        const char *mime = get_mime_type(path);
+        add_response_header("Content-Type", mime, response);
+
+        if (send_200_response(sservice, response) == -1) {
+            free_http_response(response);
             return -1;
         }
+        free_http_response(response);
         if (close(index_fd) == -1) {
             return -1;
         }
-        file[sizeof(file) - 1] = 0;
+        
+        return 0;
 
-        if (create_http_response(response, HTTP_VERSION, OK_STATUS,
-                file, (unsigned long) filestat.st_size) == -1) {
+    } else {
+        // Nous utilisons la fonction mmap pour projeter le contenu du fichier dans 
+        // La mémoire vive de l'ordinateur. Cela permet d'envoyer des fichiers bien plus gros
+        // qu'en lisant son contenu dans un tableau de caractères avec l'appel read,
+        // puisqu'ici, la seule limite de taille pour le fichier à envoyer est la mémoire
+        // disponnible sur le serveur. 
+        char *file = mmap(0, len, PROT_READ, MAP_SHARED, index_fd, 0);
+        if (file == MAP_FAILED) return -1;
+        
+        if (create_http_response(response, HTTP_VERSION, OK_STATUS, file, len) == -1) {
             return -1;
         }
-    }
 
+        // On construit le header Content-Type
+        const char *mime = get_mime_type(path);
+        add_response_header("Content-Type", mime, response);
 
-    // On construit le header Content-Type
-    const char *mime = get_mime_type(path);
-    add_response_header("Content-Type", mime, response);
-
-    if (send_200_response(sservice, response) == -1) {
+        if (send_200_response(sservice, response) == -1) {
+            munmap(file, len);
+            free_http_response(response);
+            return -1;
+        }
+        munmap(file, len);
         free_http_response(response);
-        return -1;
+        if (close(index_fd) == -1) {
+            return -1;
+        }
+        
+        return 0;
     }
-    free_http_response(response);
-
-    return 0;
 }
 
 void handler(int num) {

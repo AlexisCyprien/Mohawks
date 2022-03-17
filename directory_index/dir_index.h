@@ -5,7 +5,7 @@
 #include "../socket_tcp/socket_tcp.h"
 
 #define DIR_INDEX_FORMAT \
-    "<tr><td><a href=\"%s%s\">%s%s</a></td><td>%s</td><td>%s</td></tr>"
+    "<tr><td><a href=\"%s%s\">%s%s</a></td><td>%s</td><td>%s</td></tr>\r\n"
 
 #define INDEX_DATE_FORMAT "%d-%m-%Y %R"
 

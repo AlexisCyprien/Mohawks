@@ -122,13 +122,22 @@ int acceptSocketTCP(const SocketTCP *secoute, SocketTCP *sservice) {
     return 0;
 }
 
-ssize_t writeSocketTCP(const SocketTCP *osocket, const void *buffer,
+ssize_t writeSocketTCP(const SocketTCP *osocket, const char *buffer,
                        size_t length) {
     if (osocket == NULL) {
         return -1;
     }
 
-    return send(osocket->sockfd, buffer, length, 0);
+    ssize_t offset = 0;
+    do {
+        ssize_t n = send(osocket->sockfd, buffer + offset, length, 0);
+        if (n ==  -1) {
+            return -1;
+        }
+        offset += n;
+    } while ((unsigned long) offset < length);
+    
+    return 0;
 }
 
 ssize_t readSocketTCP(const SocketTCP *nsocket, void *buffer, size_t length) {
