@@ -30,23 +30,51 @@ SocketTCP *secoute;
 static __thread SocketTCP *sservice;
 
 int main(void) {
-    signal(SIGHUP, SIG_IGN);
-    /*TODO: implémenter la gestion des signaux */
+    /* Gestion des signaux */
     sigset_t mask;
-    sigfillset(&mask);
-    sigdelset(&mask, SIGINT);
-    sigdelset(&mask, SIGTERM);
-    sigprocmask(SIG_SETMASK, &mask, NULL);
+    if (sigfillset(&mask) == -1) {
+        fprintf(stderr, "Erreur : Lancement du serveur HTTP\n");
+        perror("sigfillset");
+        return EXIT_FAILURE;
+    }
+    if (sigdelset(&mask, SIGINT) == -1) {
+        fprintf(stderr, "Erreur : Lancement du serveur HTTP\n");
+        perror("sigdelset");
+        return EXIT_FAILURE;
+    }
+    if (sigdelset(&mask, SIGTERM) == -1) {
+        fprintf(stderr, "Erreur : Lancement du serveur HTTP\n");
+        perror("sigdelset");
+        return EXIT_FAILURE;
+    }
+    if (sigprocmask(SIG_SETMASK, &mask, NULL) == -1) {
+        fprintf(stderr, "Erreur : Lancement du serveur HTTP\n");
+        perror("sigprocmask");
+        return EXIT_FAILURE;
+    }
 
     struct sigaction sa;
     sa.sa_handler = handler;
-    sigfillset(&sa.sa_mask);
+    if (sigfillset(&sa.sa_mask) == -1) {
+        fprintf(stderr, "Erreur : Lancement du serveur HTTP\n");
+        perror("sigfillset");
+        return EXIT_FAILURE;
+    }
     sa.sa_flags = 0;
-    sigaction(SIGINT, &sa, NULL);
-    sigaction(SIGTERM, &sa, NULL);
+    if (sigaction(SIGINT, &sa, NULL) == -1) {
+        fprintf(stderr, "Erreur : Lancement du serveur HTTP\n");
+        perror("sigfillset");
+        return EXIT_FAILURE;
+    }
+    if (sigaction(SIGTERM, &sa, NULL) == -1) {
+        fprintf(stderr, "Erreur : Lancement du serveur HTTP\n");
+        perror("sigfillset");
+        return EXIT_FAILURE;
+    }
 
+    /* Lancement du serveur */
     if (run_server() != 0) {
-        fprintf(stderr, "Erreur  serveur HTTP\n");  // Traiter erreurs
+        fprintf(stderr, "Erreur : Lancement du serveur HTTP\n");
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
@@ -65,7 +93,7 @@ int run_server(void) {
     }
 
     while (1) {
-        sservice = malloc(sizeof *sservice);  // <- PAS FREE !!
+        sservice = malloc(sizeof *sservice);
         initSocketTCP(sservice);
         if (sservice == NULL) {
             closeSocketTCP(secoute);
@@ -114,6 +142,8 @@ void *treat_connection(void *arg) {
     } else {
         if (fds[0].revents & POLLERR) {
             // Erreur sur la socket
+            closeSocketTCP(sservice);
+            pthread_exit(NULL);
         }
 
         if (fds[0].revents & POLLIN) {
@@ -158,11 +188,15 @@ void *treat_connection(void *arg) {
 
             int r = parse_http_request(buffer, request);
             if (r != 0) {
-                send_400_response(sservice);
+                if (r == ERR_REGEX) {
+                    send_400_response(sservice);
+                } else {
+                    send_500_response(sservice);
+                }
                 goto end_connection;
             }
-
-            if (treat_http_request(sservice, request) == -1) {
+            r = treat_http_request(sservice, request);
+            if (r != 0) {
                 send_500_response(sservice);
             }
 
