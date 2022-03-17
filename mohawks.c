@@ -124,12 +124,16 @@ void *treat_connection(void *arg) {
                 pthread_exit(NULL);
             }
 
-            if (readSocketTCP(sservice, buffer, buflen) == -1) {
-                // Err
-                free(buffer);
-                pthread_exit(NULL);
-            }
-            // Lecture requete
+            ssize_t offset = 0;
+            do {
+                ssize_t n = readSocketTCP(sservice, buffer + offset, buflen);
+                if (n == -1) {
+                    free(buffer);
+                    pthread_exit(NULL);
+                }
+                offset += n;
+            } while (strstr(buffer, "\r\n\r\n") == NULL &&
+                     strstr(buffer, "\n\n") == NULL);
 
             http_request *request = malloc(sizeof *request);
             if (request == NULL) {
@@ -583,5 +587,5 @@ bool is_modified_since(http_request *request, time_t mod_date) {
         }
         pp = &((*pp)->next);
     }
-    return false;
+    return true;
 }
