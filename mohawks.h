@@ -1,10 +1,20 @@
+/******************************************************************************
+ *                              MOHAWKS :
+ *     Bibliothèque C permettant la gestion d'un serveur HTTP/1.0 et la création
+ *     d'une structure pour les réponse HTTP aux clients.
+ ******************************************************************************/
+
 #ifndef MOHAWKS__H
 #define MOHAWKS__H
+
+#include <stdbool.h>
 
 #include "http_parser/http_parser.h"
 #include "socket_tcp/socket_tcp.h"
 
-#include <stdbool.h>
+/*******************************************************************************
+ *                                 MACROS
+ ******************************************************************************/
 
 #define SERVER_NAME "Mohawks/0.9"
 
@@ -31,11 +41,18 @@
 
 #define EXPIRE_TIME 3600
 
+/*******************************************************************************
+ *                                 STRUCTURES
+ ******************************************************************************/
+
+// status_line : Structure pouvant contenir les champs d'une ligne de
+//                status HTTP
 typedef struct status_line {
     char *version;
     char *status_code;
 } status_line;
 
+// http_response : Structure contenant les champs d'une reponse HTTP
 typedef struct http_response {
     status_line *status_line;
     header *headers;
@@ -43,61 +60,75 @@ typedef struct http_response {
     unsigned long body_size;
 } http_response;
 
-// Lance le serveur
+/*******************************************************************************
+ *                                 FONCTIONS
+ ******************************************************************************/
+
+// run_server : Lance le serveur
 int run_server(void);
 
-// Traite la connexion au client
+// treat_connection : Traite la connexion au client
 void *treat_connection(void *arg);
 
-// Traite la requète HTTP
+// treat_http_request : Traite la requète HTTP request avec les réponses renvoyé
+//                    sur la socket de service service.
 int treat_http_request(SocketTCP *sservice, http_request *request);
 
-// Traite la requète de méthode GET
+// treat_GET_HEAD_request : Traite la requète de méthode GET ou HEAD avec
+//                        les réponses renvoyé sur la socket de service service.
 int treat_GET_HEAD_request(SocketTCP *sservice, http_request *request);
 
-// Remplie la stucture http_response avec la version, le status, le corps et la taille du corps
-int create_http_response(http_response *response, const char *version, 
-        const char *status, const char *body, unsigned long bodysize);
+// create_http_response : Remplie la stucture http_response avec la version,
+//                        le status, le corps et la taille du corps
+int create_http_response(http_response *response, const char *version,
+                         const char *status, const char *body,
+                         unsigned long bodysize);
 
-// Ajoute le header constitué de name et de field à response
-int add_response_header(const char *name, const char *field, http_response *response);
+// add_response_header : Ajoute le header constitué de name et de field
+//                       à la structure response
+int add_response_header(const char *name, const char *field,
+                        http_response *response);
 
-// Envoie la structure http_response
+// send_http_response : Envoie la structure http_response via la socket osocket
 int send_http_response(SocketTCP *osocket, http_response *response);
 
-// Libère la mémoire allouée par une structure http_response
+// free_http_response : Libère les ressources de la structure http_response
 void free_http_response(http_response *response);
 
-// Envoie une réponse sans corps ni en-têtes
+// send_simple_response : Envoie une réponse HTTP sans corps ni en-têtes
 int send_simple_response(SocketTCP *osocket, const char *status);
 
-// Envoie une réponse 200 OK
+// send_200_response : Envoie une réponse 200 OK sur la socket TCP osocket
 int send_200_response(SocketTCP *osocket, http_response *response);
 
-// Envoie une réponse 301 Moved Permanently
+// send_301_response : Envoie une réponse 301 Moved Permanently
+//                     sur la socket TCP osocket
 int send_301_response(SocketTCP *osocket, char *new_path);
 
-// Envoie une réponse 304 Not Modified
+// send_304_response : Envoie une réponse 304 Not Modified sur la socket TCP
 int send_304_response(SocketTCP *osocket);
 
-// Envoie une réponse 400 Bad Request
+// send_400_response : Envoie une réponse 400 Bad Request sur la socket TCP
 int send_400_response(SocketTCP *osocket);
 
-// Envoie une réponse 404 Not Found
+// send_400_response : Envoie une réponse 404 Not Found sur la socket TCP
 int send_404_response(SocketTCP *osocket);
 
-// Envoie une réponse 403 Forbidden
+// send_403_response : Envoie une réponse 403 Forbidden sur la socket TCP
 int send_403_response(SocketTCP *osocket);
 
-// Envoie une réponse 408 Request Timeout
+// send_408_response : Envoie une réponse 408 Request Timeout sur la socket TCP
 int send_408_response(SocketTCP *osocket);
 
-// Envoie une réponse 500 Internal Server Error
+// send_500_response : Envoie une réponse 500 Internal Server Error sur la
+//                     socket TCP
 int send_500_response(SocketTCP *osocket);
 
-// Envoie une réponse 501 Not Implemented
+// send_501_response : Envoie une réponse 501 Not Implemented sur la socket TCP
 int send_501_response(SocketTCP *osocket);
 
+// is_modified_since : Renvoie si l'en-tête If-Modified-Since est plus
+//                     récente que mod_date
 bool is_modified_since(http_request *request, time_t mod_date);
 
 #endif  // MOHAWKS__H

@@ -1,5 +1,14 @@
+/******************************************************************************
+ *                              UNIT_TEST :
+ *     Bibliothèque C permettant le test unitaire des fonctions de http_parser.
+ ******************************************************************************/
+
 #ifndef UNIT_TEST__H
 #define UNIT_TEST__H
+
+/*******************************************************************************
+ *                                 MACROS
+ ******************************************************************************/
 
 #define GOOD_REQUEST_LINE "GET /index.html HTTP/1.0"
 #define BAD_REQUEST_LINE "DONT GET /ind.pdf DHCP/1.0"
@@ -9,6 +18,10 @@
 
 #define GOOD_HTTP_REQUEST(RL, HD) RL "\r\n" HD
 #define BAD_HTTP_REQUEST(RL, HD) RL "\r\n" HD
+
+/*******************************************************************************
+ *                                 STRUCTURES
+ ******************************************************************************/
 
 // test_parse_request_line : Teste le bon fonctionnement de la fonction
 //      parse_request_line dans http_parser

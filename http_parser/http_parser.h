@@ -1,47 +1,15 @@
-/*                          HTTP_PARSER :
+/******************************************************************************
+ *                              HTTP_PARSER :
  *     Bibliothèque C permettant le parsing de requête HTTP 1.x et la création
  *     d'une structure permettant la manipulation de requête valide.
- */
+ ******************************************************************************/
 
 #ifndef HTTP_PARSER__H
 #define HTTP_PARSER__H
 
-// request_line : structure pouvant contenir les champs d'une ligne de
-//                       requête HTTP
-typedef struct request_line request_line;
-
-typedef struct request_line {
-    char *method;
-    char *uri;
-    char *version;
-} request_line;
-
-// header : liste simplement chainée pouvant contenir les champs des headers
-//          d'une requête HTTP
-typedef struct header header;
-
-typedef struct header {
-    char *name;
-    char *field;
-    header *next;
-} header;
-
-// http_request : structure contenant les champs d'une requête HTTP
-typedef struct http_request http_request;
-
-typedef struct http_request {
-    request_line *request_line;
-    header *headers;
-    char *body;
-} http_request;
-
-enum ERR {
-    ERR_MALLOC = 1,
-    ERR_NULL,
-    ERR_REGEX,
-    ERR_REQUEST,
-    ERR_BLANK_LINE,
-};
+/*******************************************************************************
+ *                                 MACROS
+ ******************************************************************************/
 
 #define CRLF "\r\n"
 #define SPACE " "
@@ -61,9 +29,51 @@ enum ERR {
 
 #define REQUEST_LINE_SIZE_MAX 256
 
-/*
-     FONCTIONS STRUCTURES
-*/
+/*******************************************************************************
+ *                                 STRUCTURES
+ ******************************************************************************/
+
+// request_line : Structure pouvant contenir les champs d'une ligne de
+//                requête HTTP
+typedef struct request_line request_line;
+
+typedef struct request_line {
+    char *method;
+    char *uri;
+    char *version;
+} request_line;
+
+// header : Liste simplement chainée pouvant contenir les champs des headers
+//          d'une requête HTTP
+typedef struct header header;
+
+typedef struct header {
+    char *name;
+    char *field;
+    header *next;
+} header;
+
+// http_request : Structure contenant les champs d'une requête HTTP
+typedef struct http_request http_request;
+
+typedef struct http_request {
+    request_line *request_line;
+    header *headers;
+    char *body;
+} http_request;
+
+// ERR : Enumeration pour la gestion d'erreur.
+enum ERR {
+    ERR_MALLOC = 1,
+    ERR_NULL,
+    ERR_REGEX,
+    ERR_REQUEST,
+    ERR_BLANK_LINE,
+};
+
+/*******************************************************************************
+ *                                 FONCTIONS
+ ******************************************************************************/
 
 // init_request : Initialisation de la structure http_request
 //      Renvoie -1 si request est à null
@@ -77,11 +87,8 @@ int add_headers(char *name, char *field, http_request *request);
 //      de request.
 void free_http_request(http_request *request);
 
+// free_headers : Libère les resources de la structure headers
 void free_headers(header *headers);
-
-/*
-     FONCTIONS PARSING
-*/
 
 // check_blank_line_request : Teste si il y a la ligne vide en fin de requête.
 //      Renvoie 0 en cas de succès, sinon une erreur de type ERR.
