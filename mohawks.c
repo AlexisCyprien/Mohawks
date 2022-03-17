@@ -126,9 +126,13 @@ void *treat_connection(void *arg) {
 
             ssize_t offset = 0;
             do {
-                ssize_t n = readSocketTCP(sservice, buffer + offset, buflen);
+                ssize_t n = readSocketTCP(sservice, buffer + offset,
+                                          buflen - ((size_t)offset));
                 if (n == -1) {
                     free(buffer);
+                    if (closeSocketTCP(sservice) == -1) {
+                        // Err
+                    }
                     pthread_exit(NULL);
                 }
                 offset += n;
@@ -201,7 +205,8 @@ int treat_http_request(SocketTCP *sservice, http_request *request) {
         if (strcmp(request->request_line->method, "GET") == 0 ||
             strcmp(request->request_line->method, "HEAD") == 0) {
             return treat_GET_HEAD_request(sservice, request);
-        } else return send_501_response(sservice);
+        } else
+            return send_501_response(sservice);
     }
     return 0;
 }
@@ -223,27 +228,28 @@ int treat_GET_HEAD_request(SocketTCP *sservice, http_request *request) {
     errno = 0;
     if ((index_fd = open(path, O_RDONLY)) == -1) {
         switch (errno) {
-        // Le fichier demandé n'existe pas
-        case ENOENT :
-            // Si l'uri demandé est un dossier, on lance l'indexation
-            if (endswith(request->request_line->uri, "/")) {
-                if (directory_index(request, path, sservice) == -1) {
-                    return send_500_response(sservice);
-                } else return 0;
-            }
+            // Le fichier demandé n'existe pas
+            case ENOENT:
+                // Si l'uri demandé est un dossier, on lance l'indexation
+                if (endswith(request->request_line->uri, "/")) {
+                    if (directory_index(request, path, sservice) == -1) {
+                        return send_500_response(sservice);
+                    } else
+                        return 0;
+                }
 
                 // Sinon on envoie un code 404 Not Found
                 return send_404_response(sservice);
                 break;
 
-        // Pas autorisé à accéder à cette entrée
-        case EACCES :
-        case EFAULT :
-            return send_403_response(sservice);
-            break;
-        default:
-            return send_500_response(sservice);
-            break;
+            // Pas autorisé à accéder à cette entrée
+            case EACCES:
+            case EFAULT:
+                return send_403_response(sservice);
+                break;
+            default:
+                return send_500_response(sservice);
+                break;
         }
     }
     // On récupère la taille du fichier
@@ -264,8 +270,8 @@ int treat_GET_HEAD_request(SocketTCP *sservice, http_request *request) {
         return -1;
     }
     if (strcmp(request->request_line->method, "HEAD") == 0) {
-        if (create_http_response(response, HTTP_VERSION, OK_STATUS,
-                NULL, (unsigned long) filestat.st_size) == -1) {
+        if (create_http_response(response, HTTP_VERSION, OK_STATUS, NULL,
+                                 (unsigned long)filestat.st_size) == -1) {
             return -1;
         }
     } else {
@@ -279,12 +285,11 @@ int treat_GET_HEAD_request(SocketTCP *sservice, http_request *request) {
         }
         file[sizeof(file) - 1] = 0;
 
-        if (create_http_response(response, HTTP_VERSION, OK_STATUS,
-                file, (unsigned long) filestat.st_size) == -1) {
+        if (create_http_response(response, HTTP_VERSION, OK_STATUS, file,
+                                 (unsigned long)filestat.st_size) == -1) {
             return -1;
         }
     }
-
 
     // On construit le header Content-Type
     const char *mime = get_mime_type(path);
@@ -351,12 +356,13 @@ int create_http_response(http_response *response, const char *version,
 
     // Si le corps n'est pas vide, on l'ajoute à notre réponse
     if (body != NULL) {
-            response->body = malloc(body_size + 1);
-            if (response->body == NULL) {
-                return -1;
-            }
-            memcpy(response->body, body, body_size);
-    } else response->body = NULL;
+        response->body = malloc(body_size + 1);
+        if (response->body == NULL) {
+            return -1;
+        }
+        memcpy(response->body, body, body_size);
+    } else
+        response->body = NULL;
     response->body_size = body_size;
     return 0;
 }
@@ -406,7 +412,8 @@ int send_http_response(SocketTCP *osocket, http_response *response) {
     }
     if (response->body != NULL) {
         // Puis le corps de la réponse
-        if (writeSocketTCP(osocket, response->body, response->body_size) == -1) {
+        if (writeSocketTCP(osocket, response->body, response->body_size) ==
+            -1) {
             return -1;
         }
 
@@ -515,7 +522,8 @@ int send_200_response(SocketTCP *osocket, http_response *response) {
     t += EXPIRE_TIME;
     gmtime_r(&t, &readable_time);
     char expire_date[200];
-    strftime(expire_date, sizeof(expire_date), HTTP_DATE_FORMAT, &readable_time);
+    strftime(expire_date, sizeof(expire_date), HTTP_DATE_FORMAT,
+             &readable_time);
     add_response_header("Expires", expire_date, response);
 
     // On ajoute le header Allow
