@@ -255,7 +255,7 @@ int treat_GET_HEAD_request(SocketTCP *sservice, http_request *request) {
     char filesize[100];
     snprintf(filesize, sizeof(filesize) - 1, "%ld", filestat.st_size);
 
-    if (is_modified_since(request, filestat.st_mtim.tv_sec)) {
+    if (!is_modified_since(request, filestat.st_mtim.tv_sec)) {
         return send_304_response(sservice);
     }
 
@@ -505,9 +505,7 @@ int send_200_response(SocketTCP *osocket, http_response *response) {
 
     // On ajoute le header Date
     time_t t;
-    if (time(&t) == (time_t)-1) {
-        perror("time");
-    }
+    if (time(&t) == (time_t)-1) return -1;
     struct tm readable_time;
     gmtime_r(&t, &readable_time);
     char date[200];

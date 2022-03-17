@@ -76,6 +76,7 @@ int directory_index(http_request *request, const char *path, SocketTCP *osocket)
     }
 
     // On lit toutes les entrées de notre dossier
+    time_t last_mod_time = 0;
     struct dirent *dir;
     if (d) {
         while ((dir = readdir(d)) != NULL) {
@@ -100,6 +101,10 @@ int directory_index(http_request *request, const char *path, SocketTCP *osocket)
                     localtime_r(&(filestat.st_mtim.tv_sec), &tm);
                     char date[200];
                     strftime(date, sizeof(date) -1, INDEX_DATE_FORMAT, &tm);
+
+                    if (filestat.st_mtim.tv_sec > last_mod_time) {
+                        last_mod_time = filestat.st_mtim.tv_sec;
+                    } 
 
                     // L'entrée est un dossier
                     if (dir->d_type == DT_DIR) {
@@ -136,6 +141,10 @@ int directory_index(http_request *request, const char *path, SocketTCP *osocket)
         }
     }
     
+    if (!is_modified_since(request, last_mod_time)) {
+        return send_304_response(osocket);
+    }
+
     // On ouvre notre footer html
     int foot_fd;
     if ((foot_fd = open("./directory_index/footer.html", O_RDONLY)) == -1) {
