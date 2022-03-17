@@ -27,7 +27,7 @@ extern int creerSocketEcouteTCP(SocketTCP *isocket, const char *adresse,
 
 extern int acceptSocketTCP(const SocketTCP *secoute, SocketTCP *sservice);
 
-extern ssize_t writeSocketTCP(const SocketTCP *osocket, const void *buffer,
+extern ssize_t writeSocketTCP(const SocketTCP *osocket, const char *buffer,
                               size_t length);
 
 extern ssize_t readSocketTCP(const SocketTCP *nsocket, void *buffer,
