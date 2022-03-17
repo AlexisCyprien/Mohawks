@@ -51,15 +51,16 @@ int parse_request_line(char *rawdata, http_request *request) {
         goto parse_end;
     }
 
-    // Verification de la chaine via la regex et découpage par groupe
     regex_t regex;
     regmatch_t pmatch[REGEX_RL_MATCH];
 
+    // Création de la regex
     if (regcomp(&regex, REGEX_REQ_LINE, REG_EXTENDED) != 0) {
         fprintf(stderr, "%s : regcomp\n", __func__);
         r = ERR_REGEX;
         goto free_reg;
     }
+    // Verification de la chaine via la regex et découpage par groupe
     int errcode = regexec(&regex, rawdata, REGEX_RL_MATCH, pmatch, 0);
     if (errcode != 0) {
         char errbuf[20];
@@ -111,6 +112,7 @@ int parse_header(char *rawdata, http_request *request) {
         r = ERR_NULL;
         goto parse_end;
     }
+    // Création de la regex
     regex_t regex;
     regmatch_t pmatch[REGEX_HD_MATCH];
     if (regcomp(&regex, REGEX_HEADERS, REG_EXTENDED) != 0) {
@@ -118,12 +120,12 @@ int parse_header(char *rawdata, http_request *request) {
         r = ERR_REGEX;
         goto parse_end;
     }
-
+    // Verification de la chaine via la regex et découpage par groupe
     int errcode = regexec(&regex, rawdata, REGEX_HD_MATCH, pmatch, 0);
     if (errcode != 0) {
         char errbuf[20];
         regerror(errcode, &regex, errbuf, 20);
-        /// fprintf(stderr, "regexec : %s , %s \n", errbuf, __func__);
+        fprintf(stderr, "regexec : %s , %s \n", errbuf, __func__);
         r = ERR_REGEX;
         goto free_reg;
     }
@@ -146,6 +148,7 @@ int parse_header(char *rawdata, http_request *request) {
     strncpy(field, rawdata + pmatch[2].rm_so, field_len);
     *(field + field_len) = '\0';
 
+    // Ajout du header dans la liste chainée header
     r = add_headers(name, field, request);
 
     free(field);

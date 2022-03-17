@@ -11,9 +11,7 @@
 
 int main(void) {
     TEST_FUN(test_parse_request_line());
-    char test_request[60];
-    strncpy(test_request, GOOD_REQUEST_LINE, strlen(GOOD_REQUEST_LINE) + 1);
-    int r = test_parse_request_line(test_request);
+    int r = test_parse_request_line(GOOD_REQUEST_LINE);
     if (r != 0) {
         printf("%s \n", err_to_string(r));
     } else {
@@ -22,12 +20,47 @@ int main(void) {
     TEST_END;
 
     TEST_FUN(test_parse_request_line());
-    memset(test_request, 0, sizeof test_request);
-    strncpy(test_request, BAD_REQUEST_LINE, strlen(BAD_REQUEST_LINE) + 1);
-    r = test_parse_request_line(test_request);
+    r = test_parse_request_line(BAD_REQUEST_LINE);
     if (r != 0) {
-        printf("Test réussis ! \n");
         printf("%s \n", err_to_string(r));
+        printf("Test réussis ! \n");
+    } else {
+        printf("Test raté ! \n");
+    }
+    TEST_END;
+
+    TEST_FUN(test_parse_header());
+    r = test_parse_header(GOOD_HEADER);
+    if (r != 0) {
+        printf("%s \n", err_to_string(r));
+    } else {
+        printf("Test réussis ! \n");
+    }
+    TEST_END;
+
+    TEST_FUN(test_parse_header());
+    r = test_parse_header(BAD_HEADER);
+    if (r != 0) {
+        printf("%s \n", err_to_string(r));
+        printf("Test réussis ! \n");
+    } else {
+        printf("Test raté ! \n");
+    }
+    TEST_END;
+    TEST_FUN(test_parse_http_request());
+    r = test_parse_http_request(
+        GOOD_HTTP_REQUEST(GOOD_REQUEST_LINE, GOOD_HEADER));
+    if (r != 0) {
+        printf("%s \n", err_to_string(r));
+    } else {
+        printf("Test réussis ! \n");
+    }
+    TEST_END;
+    TEST_FUN(test_parse_http_request());
+    r = test_parse_http_request(BAD_HTTP_REQUEST(BAD_REQUEST_LINE, BAD_HEADER));
+    if (r != 0) {
+        printf("%s \n", err_to_string(r));
+        printf("Test réussis ! \n");
     } else {
         printf("Test raté ! \n");
     }
@@ -35,7 +68,7 @@ int main(void) {
     return EXIT_SUCCESS;
 }
 
-int test_parse_request_line(char *rawdata) {
+int test_parse_request_line(const char *rawdata) {
     int r = 0;
     if (rawdata == NULL) {
         r = ERR_NULL;
@@ -48,16 +81,74 @@ int test_parse_request_line(char *rawdata) {
         goto tested;
     }
     init_request(phttp);
-    // phttp->request_line = malloc(sizeof phttp->request_line);
-    // if (phttp->request_line == NULL) {
-    //     r = ERR_MALLOC;
-    //     goto tested;
-    // }
-    r = parse_request_line(rawdata, phttp);
+
+    char test_request[60];
+    strncpy(test_request, rawdata, sizeof(test_request) - 1);
+
+    r = parse_request_line(test_request, phttp);
     if (r == 0) {
         printf("Method : %s \n", phttp->request_line->method);
         printf("URI : %s \n", phttp->request_line->uri);
         printf("Version : %s \n", phttp->request_line->version);
+    }
+
+    free_http_request(phttp);
+tested:
+    return r;
+}
+
+int test_parse_header(const char *rawdata) {
+    int r = 0;
+    if (rawdata == NULL) {
+        r = ERR_NULL;
+        goto tested;
+    }
+
+    http_request *phttp = malloc(sizeof *phttp);
+    if (phttp == NULL) {
+        r = ERR_MALLOC;
+        goto tested;
+    }
+    init_request(phttp);
+
+    char test_request[200];
+    strncpy(test_request, rawdata, sizeof(test_request) - 1);
+
+    r = parse_header(test_request, phttp);
+    if (r == 0) {
+        printf("Header : %s \n", phttp->headers->name);
+        printf("Field : %s \n", phttp->headers->field);
+    }
+
+    free_http_request(phttp);
+tested:
+    return r;
+}
+
+int test_parse_http_request(const char *rawdata) {
+    int r = 0;
+    if (rawdata == NULL) {
+        r = ERR_NULL;
+        goto tested;
+    }
+
+    http_request *phttp = malloc(sizeof *phttp);
+    if (phttp == NULL) {
+        r = ERR_MALLOC;
+        goto tested;
+    }
+    init_request(phttp);
+
+    char test_request[200];
+    strncpy(test_request, rawdata, sizeof(test_request) - 1);
+
+    r = parse_http_request(test_request, phttp);
+    if (r == 0) {
+        printf("Method : %s \n", phttp->request_line->method);
+        printf("URI : %s \n", phttp->request_line->uri);
+        printf("Version : %s \n", phttp->request_line->version);
+        printf("Header : %s \n", phttp->headers->name);
+        printf("Field : %s \n", phttp->headers->field);
     }
 
     free_http_request(phttp);
