@@ -151,23 +151,18 @@ void *treat_connection(void *arg) {
             int r = parse_http_request(buffer, request);
             if (r != 0) {
                 send_400_response(sservice);
-                closeSocketTCP(sservice);
-
-                pthread_exit(NULL);
+                goto end_connection;
             }
 
             if (treat_http_request(sservice, request) == -1) {
                 send_500_response(sservice);
             }
-            // closeSocketTCP(sservice);
-            // pthread_exit(NULL);
 
         end_connection:
             free_http_request(request);
             request = NULL;
             free(buffer);
             buffer = NULL;
-            // free etc
             closeSocketTCP(sservice);
             pthread_exit(NULL);
         }
