@@ -20,23 +20,23 @@
 #define BAD_HTTP_REQUEST(RL, HD) RL "\r\n" HD
 
 /*******************************************************************************
- *                                 STRUCTURES
+ *                                 FONCTIONS
  ******************************************************************************/
 
 // test_parse_request_line : Teste le bon fonctionnement de la fonction
 //      parse_request_line dans http_parser
-int test_parse_request_line(const char *rawdata);
+extern int test_parse_request_line(const char *rawdata);
 
 // test_parse_header_line : Teste le bon fonctionnement de la fonction
 //      parse_header_line dans http_parser
-int test_parse_header(const char *rawdata);
+extern int test_parse_header(const char *rawdata);
 
 // test_parse_http_request : Teste le bon fonctionnement de la fonction
 //      parse_http_request dans http_parser
-int test_parse_http_request(const char *rawdata);
+extern int test_parse_http_request(const char *rawdata);
 
 // err_to_string : Renvoie à partir du code d'erreur la chaine de caractères
 //      qui lui correspond
-const char *err_to_string(int err);
+extern const char *err_to_string(int err);
 
 #endif  // UNIT_TEST__H

@@ -1,3 +1,8 @@
+/******************************************************************************
+ *                              SOCKET_TCP :
+ *     Bibliothèque C permettant la manipulation de socket
+ ******************************************************************************/
+
 #ifndef SOCKET_TCP__H
 #define SOCKET_TCP__H
 
@@ -6,7 +11,15 @@
 #include "../adresse_internet/adresse_internet.h"
 #include "../adresse_internet/adresse_internet_type.h"
 
+/*******************************************************************************
+ *                                 MACROS
+ ******************************************************************************/
+
 #define SIZE_QUEUE 16
+
+/*******************************************************************************
+ *                                 STRUCTURES
+ ******************************************************************************/
 
 typedef struct SocketTCP {
     int sockfd;
@@ -16,6 +29,10 @@ typedef struct SocketTCP {
     bool listening;
     bool bound;
 } SocketTCP;
+
+/*******************************************************************************
+ *                                 FONCTIONS
+ ******************************************************************************/
 
 extern int initSocketTCP(SocketTCP *psocket);
 

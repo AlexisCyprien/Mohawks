@@ -24,7 +24,7 @@
 
 // directory_index : Indèxe le répertoire demandé par l'utilisateur si celui ci
 //           ne contient pas de fichier index.html
-int directory_index(http_request *request, const char *path,
-                    SocketTCP *osocket);
+extern int directory_index(http_request *request, const char *path,
+                           SocketTCP *osocket);
 
 #endif  // DIR_INDEX__H

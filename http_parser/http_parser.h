@@ -77,39 +77,39 @@ enum ERR {
 
 // init_request : Initialisation de la structure http_request
 //      Renvoie -1 si request est à null
-int init_request(http_request *request);
+extern int init_request(http_request *request);
 
 // add_headers : Ajoute un header dans la structure request si name et field
 //      ne sont pas présent dans la structure.
-int add_headers(char *name, char *field, http_request *request);
+extern int add_headers(char *name, char *field, http_request *request);
 
 // free_http_request : Libère les ressources de la structure http_request
 //      de request.
-void free_http_request(http_request *request);
+extern void free_http_request(http_request *request);
 
 // free_headers : Libère les resources de la structure headers
-void free_headers(header *headers);
+extern void free_headers(header *headers);
 
 // check_blank_line_request : Teste si il y a la ligne vide en fin de requête.
 //      Renvoie 0 en cas de succès, sinon une erreur de type ERR.
-int check_blank_line_request(char *rawdata);
+extern int check_blank_line_request(char *rawdata);
 
 // parse_request_line : Lit une chaine de caractères, vérifie si celle-ci est
 //      une ligne de requête HTTP (Request-Line cf. RFC 1945) et,
 //      dans le cas échéant ajoute les champs dans request.
 //      Sinon, renvoie -1 en cas de requêtes non conforme, ou une erreur.
-int parse_request_line(char *rawdata, http_request *request);
+extern int parse_request_line(char *rawdata, http_request *request);
 
 // parse_header : Lit une chaine de caractères,
 //      vérifie si celle-ci est un header de requête HTTP
 //      (General-Header, Request-Header , Entity-Header cf. RFC 1945) et,
 //      dans le cas échéant ajoute les champs dans request.
 //      Sinon, renvoie -1 en cas de requêtes non conforme, ou une erreur.
-int parse_header(char *rawdata, http_request *request);
+extern int parse_header(char *rawdata, http_request *request);
 
 // parse_http_request : Lit une chaine de caracteres, et verifie si celle-ci est
 //      une requete HTTP conforme et la traite en la stockant dans request.
 //      Renvoie 0 en cas de succès sinon une erreur de type ERR.
-int parse_http_request(char *rawdata, http_request *request);
+extern int parse_http_request(char *rawdata, http_request *request);
 
 #endif  // HTTP_PARSER__H
