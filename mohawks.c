@@ -168,7 +168,8 @@ void *treat_connection(void *arg) {
                 }
                 offset += n;
             } while (strstr(buffer, "\r\n\r\n") == NULL &&
-                     strstr(buffer, "\n\n") == NULL);
+                     strstr(buffer, "\n\n") == NULL && 
+                     offset < bufflen);
 
             http_request *request = malloc(sizeof *request);
             if (request == NULL) {
