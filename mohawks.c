@@ -14,10 +14,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/mman.h>
 
 #include "adresse_internet/adresse_internet.h"
 #include "directory_index/dir_index.h"
@@ -168,8 +168,8 @@ void *treat_connection(void *arg) {
                 }
                 offset += n;
             } while (strstr(buffer, "\r\n\r\n") == NULL &&
-                     strstr(buffer, "\n\n") == NULL && 
-                     offset < buflen);
+                     strstr(buffer, "\n\n") == NULL &&
+                     offset < (ssize_t)buflen);
 
             http_request *request = malloc(sizeof *request);
             if (request == NULL) {
@@ -306,9 +306,10 @@ int treat_GET_HEAD_request(SocketTCP *sservice, http_request *request) {
         return -1;
     }
 
-    unsigned long len = (unsigned long) filestat.st_size;
+    unsigned long len = (unsigned long)filestat.st_size;
     if (strcmp(request->request_line->method, "HEAD") == 0) {
-        if (create_http_response(response, HTTP_VERSION, OK_STATUS, NULL, len) == -1) {
+        if (create_http_response(response, HTTP_VERSION, OK_STATUS, NULL,
+                                 len) == -1) {
             return -1;
         }
 
@@ -324,19 +325,20 @@ int treat_GET_HEAD_request(SocketTCP *sservice, http_request *request) {
         if (close(index_fd) == -1) {
             return -1;
         }
-        
+
         return 0;
 
     } else {
-        // Nous utilisons la fonction mmap pour projeter le contenu du fichier dans 
-        // La mémoire vive de l'ordinateur. Cela permet d'envoyer des fichiers bien plus gros
-        // qu'en lisant son contenu dans un tableau de caractères avec l'appel read,
-        // puisqu'ici, la seule limite de taille pour le fichier à envoyer est la mémoire
-        // disponnible sur le serveur. 
+        // Nous utilisons la fonction mmap pour projeter le contenu du fichier
+        // dans La mémoire vive de l'ordinateur. Cela permet d'envoyer des
+        // fichiers bien plus gros qu'en lisant son contenu dans un tableau de
+        // caractères avec l'appel read, puisqu'ici, la seule limite de taille
+        // pour le fichier à envoyer est la mémoire disponnible sur le serveur.
         char *file = mmap(0, len, PROT_READ, MAP_SHARED, index_fd, 0);
         if (file == MAP_FAILED) return -1;
-        
-        if (create_http_response(response, HTTP_VERSION, OK_STATUS, file, len) == -1) {
+
+        if (create_http_response(response, HTTP_VERSION, OK_STATUS, file,
+                                 len) == -1) {
             return -1;
         }
 
@@ -354,7 +356,7 @@ int treat_GET_HEAD_request(SocketTCP *sservice, http_request *request) {
         if (close(index_fd) == -1) {
             return -1;
         }
-        
+
         return 0;
     }
 }
