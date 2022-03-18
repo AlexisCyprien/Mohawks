@@ -87,7 +87,7 @@ int run_server(void) {
         return -1;
     }
     initSocketTCP(secoute);
-    if (creerSocketEcouteTCP(secoute, "localhost", 80) != 0) {
+    if (creerSocketEcouteTCP(secoute, "localhost", SERVER_PORT) != 0) {
         fprintf(stderr, "Erreur creerSocketEcouteTCP. \n");
         closeSocketTCP(secoute);
         return -1;
@@ -129,7 +129,7 @@ void *treat_connection(void *arg) {
     fds[0].fd = sservice->sockfd;
     fds[0].events = POLLIN;
 
-    int ret = poll(fds, 1, 30000);  // Timeout 30s
+    int ret = poll(fds, 1, CONNECTION_TIMEOUT);
 
     if (ret == -1) {
         send_500_response(sservice);

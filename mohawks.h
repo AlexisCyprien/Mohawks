@@ -16,6 +16,7 @@
  *                                 MACROS
  ******************************************************************************/
 
+#define SERVER_PORT 80
 #define SERVER_NAME "Mohawks/0.9"
 
 #define DEFAULT_CONTENT_DIR "./content"
@@ -40,6 +41,7 @@
 #define NOT_IMPLEMENTED_STATUS "501 Not Implemented"
 
 #define EXPIRE_TIME 3600
+#define CONNECTION_TIMEOUT 30000
 
 /*******************************************************************************
  *                                 STRUCTURES
