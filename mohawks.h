@@ -8,6 +8,7 @@
 #define MOHAWKS__H
 
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "http_parser/http_parser.h"
 #include "socket_tcp/socket_tcp.h"
@@ -18,6 +19,8 @@
 
 #define SERVER_PORT 80
 #define SERVER_NAME "Mohawks/0.9"
+
+#define LOGFILE_NAME "client_log.txt"
 
 #define DEFAULT_CONTENT_DIR "./content"
 #define DEFAULT_INDEX "index.html"
@@ -68,6 +71,10 @@ typedef struct http_response {
 
 // run_server : Lance le serveur
 extern int run_server(void);
+
+// logger : Ecriture sur la sortie f, du message msg lié au client dont la
+//          socket de communication est socket
+extern void logger(FILE *f, SocketTCP *socket, const char *msg);
 
 // treat_connection : Traite la connexion au client
 extern void *treat_connection(void *arg);

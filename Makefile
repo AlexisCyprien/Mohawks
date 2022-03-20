@@ -26,7 +26,7 @@ http_parser.o: http_parser.c http_parser.h
 mohawks.o: mohawks.c mohawks.h 
 
 clean:
-	$(RM) -r *~ *.o $(http_parser)*.o $(adresse_internet)*.o $(socket_tcp)*.o $(mime_type)*.o $(dir_index)*.o $(executable) 
+	$(RM) -r *~ *.txt *.o $(http_parser)*.o $(adresse_internet)*.o $(socket_tcp)*.o $(mime_type)*.o $(dir_index)*.o $(executable) 
 
 
 

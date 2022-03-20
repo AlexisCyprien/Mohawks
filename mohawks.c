@@ -25,13 +25,27 @@
 #include "mime_type/mime_type.h"
 #include "socket_tcp/socket_tcp.h"
 
-void handler(int num);
+// signal_setup : Mise en place de la gestion des signaux pour le serveur
+static int signal_setup(void);
+// handler : Gestionnaire des signaux du serveur
+static void handler(int num);
 
-SocketTCP *secoute;
+static __thread SocketTCP *secoute;
 static __thread SocketTCP *sservice;
+FILE *logfile;
 
 int main(void) {
     /* Gestion des signaux */
+    signal_setup();
+    /* Lancement du serveur */
+    if (run_server() != 0) {
+        fprintf(stderr, "Erreur : Lancement du serveur HTTP\n");
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
+static int signal_setup(void) {
     sigset_t mask;
     if (sigfillset(&mask) == -1) {
         fprintf(stderr, "Erreur : Lancement du serveur HTTP\n");
@@ -72,16 +86,46 @@ int main(void) {
         perror("sigfillset");
         return EXIT_FAILURE;
     }
+    return 0;
+}
 
-    /* Lancement du serveur */
-    if (run_server() != 0) {
-        fprintf(stderr, "Erreur : Lancement du serveur HTTP\n");
-        return EXIT_FAILURE;
+static void handler(int num) {
+    switch (num) {
+        case SIGINT:
+            if (secoute != NULL) {
+                closeSocketTCP(secoute);
+            }
+            if (sservice != NULL) {
+                closeSocketTCP(sservice);
+            }
+            if (fclose(logfile)) {
+                perror("fclose");
+                exit(EXIT_FAILURE);
+            }
+            exit(EXIT_SUCCESS);
+        case SIGTERM:
+            if (secoute != NULL) {
+                closeSocketTCP(secoute);
+            }
+            if (sservice != NULL) {
+                closeSocketTCP(sservice);
+            }
+            if (fclose(logfile)) {
+                perror("fclose");
+                exit(EXIT_FAILURE);
+            }
+            exit(EXIT_SUCCESS);
     }
-    return EXIT_SUCCESS;
 }
 
 int run_server(void) {
+    logfile = fopen(LOGFILE_NAME, "a");
+    if (logfile == NULL) {
+        fprintf(stderr, "Erreur : Lancement du serveur HTTP\n");
+        perror("fopen");
+        return EXIT_FAILURE;
+    }
+
     secoute = malloc(sizeof *secoute);
     if (secoute == NULL) {
         return -1;
@@ -105,6 +149,7 @@ int run_server(void) {
             closeSocketTCP(secoute);
             return -1;
         }
+        logger(logfile, sservice, "Has connected");
         pthread_t th;
         if (pthread_create(&th, NULL, treat_connection, sservice) != 0) {
             fprintf(stderr, " Erreur \n");
@@ -117,6 +162,22 @@ int run_server(void) {
     }
 
     return 0;
+}
+
+void logger(FILE *f, SocketTCP *socket, const char *msg) {
+    if (f == NULL) {
+        fprintf(stderr, "Error : log file not found ! \n");
+    }
+    time_t t;
+    if (time(&t) == (time_t)-1) {
+        perror("logtofile");
+    }
+    struct tm readable_time;
+    localtime_r(&t, &readable_time);
+
+    char time[200];
+    strftime(time, sizeof(time), "%a %b %d %T %Y", &readable_time);
+    fprintf(f, "%s - CLIENT : %s - %s \n", time, socket->distant->nom, msg);
 }
 
 void *treat_connection(void *arg) {
@@ -137,12 +198,14 @@ void *treat_connection(void *arg) {
         pthread_exit(NULL);
     } else if (ret == 0) {
         // Gestion du timeout
+        logger(logfile, sservice, "Has deconnected (Timeout)");
         send_408_response(sservice);
         closeSocketTCP(sservice);
         pthread_exit(NULL);
     } else {
         if (fds[0].revents & POLLERR) {
             // Erreur sur la socket
+            logger(logfile, sservice, "Has deconnected (Socket Error)");
             closeSocketTCP(sservice);
             pthread_exit(NULL);
         }
@@ -151,7 +214,7 @@ void *treat_connection(void *arg) {
             size_t buflen = 4096;
             char *buffer = malloc(buflen);
             if (buffer == NULL) {
-                // Erreur à gerer
+                send_500_response(sservice);
                 pthread_exit(NULL);
             }
 
@@ -170,6 +233,8 @@ void *treat_connection(void *arg) {
             } while (strstr(buffer, "\r\n\r\n") == NULL &&
                      strstr(buffer, "\n\n") == NULL &&
                      offset < (ssize_t)buflen);
+
+            logger(logfile, sservice, buffer);
 
             http_request *request = malloc(sizeof *request);
             if (request == NULL) {
@@ -203,6 +268,7 @@ void *treat_connection(void *arg) {
             }
 
         end_connection:
+            logger(logfile, sservice, "Has deconnected.");
             free_http_request(request);
             request = NULL;
             free(buffer);
@@ -358,27 +424,6 @@ int treat_GET_HEAD_request(SocketTCP *sservice, http_request *request) {
         }
 
         return 0;
-    }
-}
-
-void handler(int num) {
-    switch (num) {
-        case SIGINT:
-            if (secoute != NULL) {
-                closeSocketTCP(secoute);
-            }
-            if (sservice != NULL) {
-                closeSocketTCP(sservice);
-            }
-            exit(EXIT_SUCCESS);
-        case SIGTERM:
-            if (secoute != NULL) {
-                closeSocketTCP(secoute);
-            }
-            if (sservice != NULL) {
-                closeSocketTCP(sservice);
-            }
-            exit(EXIT_SUCCESS);
     }
 }
 
