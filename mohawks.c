@@ -7,6 +7,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <linux/limits.h>
 #include <poll.h>
 #include <pthread.h>
@@ -25,16 +26,68 @@
 #include "mime_type/mime_type.h"
 #include "socket_tcp/socket_tcp.h"
 
+// display_help : Affiche de l'aide sur la sortie standard
+static void display_help(void);
 // signal_setup : Mise en place de la gestion des signaux pour le serveur
 static int signal_setup(void);
 // handler : Gestionnaire des signaux du serveur
 static void handler(int num);
 
-static __thread SocketTCP *secoute;
-static __thread SocketTCP *sservice;
+int port = SERVER_PORT;
+char log_filename[50] = LOGFILE_NAME;
 FILE *logfile;
 
-int main(void) {
+static __thread SocketTCP *secoute;
+static __thread SocketTCP *sservice;
+
+int main(int argc, char *argv[]) {
+    /* Gestion des options */
+    int opt;
+    char *endptr;
+    while ((opt = getopt(argc, argv, "hp:o:")) != -1) {
+        switch (opt) {
+            case 'h':
+                /* Help */
+                display_help();
+                return EXIT_SUCCESS;
+                break;
+            case 'p':
+                /* Port */
+                errno = 0;
+                port = (int)strtol(optarg, &endptr, 10);
+
+                if ((errno == ERANGE && (port == INT_MAX || port == INT_MIN)) ||
+                    (errno != 0 && port == 0)) {
+                    perror("strtol");
+                    fprintf(stderr, "Usage: %s [-p port] [-o filename] \n",
+                            argv[0]);
+                    exit(EXIT_FAILURE);
+                }
+
+                if (endptr == optarg || port <= 0 || port >= 65535) {
+                    fprintf(stderr, "Port invalide. \n");
+                    fprintf(stderr, "Usage: %s [-p port] [-o filename] \n",
+                            argv[0]);
+                    exit(EXIT_FAILURE);
+                }
+
+                break;
+            case 'o':
+                /* Log Filename */
+                strncpy(log_filename, optarg, 49);
+                break;
+            default: /* '?' */
+                fprintf(stderr, "Usage: %s [-p port] [-o filename] \n",
+                        argv[0]);
+                exit(EXIT_FAILURE);
+        }
+    }
+    if (optind > argc) {
+        fprintf(stderr, "Expected argument after options.\n");
+        fprintf(stderr, "Usage: %s [-p port] [-o filename] \n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
     /* Gestion des signaux */
     signal_setup();
     /* Lancement du serveur */
@@ -43,6 +96,15 @@ int main(void) {
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
+}
+
+static void display_help(void) {
+    printf("Mohawks/0.9 \n\n");
+    printf("Usage: ./mohawks [-h] [-p port] [-o filename]\n");
+    printf("Configuration par défaut : \n");
+    printf("\t Port : %d \n", SERVER_PORT);
+    printf("\t Log filename : %s \n", LOGFILE_NAME);
+    printf("Si votre port est entre 0 et 1023, oubliez pas sudo !\n");
 }
 
 static int signal_setup(void) {
@@ -119,7 +181,7 @@ static void handler(int num) {
 }
 
 int run_server(void) {
-    logfile = fopen(LOGFILE_NAME, "a");
+    logfile = fopen(log_filename, "a");
     if (logfile == NULL) {
         fprintf(stderr, "Erreur : Lancement du serveur HTTP\n");
         perror("fopen");
@@ -131,7 +193,7 @@ int run_server(void) {
         return -1;
     }
     initSocketTCP(secoute);
-    if (creerSocketEcouteTCP(secoute, "localhost", SERVER_PORT) != 0) {
+    if (creerSocketEcouteTCP(secoute, "localhost", (u_int16_t)port) != 0) {
         fprintf(stderr, "Erreur creerSocketEcouteTCP. \n");
         closeSocketTCP(secoute);
         return -1;
@@ -463,8 +525,9 @@ int create_http_response(http_response *response, const char *version,
             return -1;
         }
         memcpy(response->body, body, body_size);
-    } else
+    } else {
         response->body = NULL;
+    }
     response->body_size = body_size;
     return 0;
 }
