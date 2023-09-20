@@ -7,6 +7,7 @@
 #define SOCKET_TCP__H
 
 #include <stdbool.h>
+#include <time.h>
 
 #include "../adresse_internet/adresse_internet.h"
 #include "../adresse_internet/adresse_internet_type.h"
@@ -37,10 +38,10 @@ typedef struct SocketTCP {
 extern int initSocketTCP(SocketTCP *psocket);
 
 extern int connectSocketTCP(SocketTCP *osocket, const char *adresse,
-                            u_int16_t port);
+                            uint16_t port);
 
 extern int creerSocketEcouteTCP(SocketTCP *isocket, const char *adresse,
-                                u_int16_t port);
+                                uint16_t port);
 
 extern int acceptSocketTCP(const SocketTCP *secoute, SocketTCP *sservice);
 

@@ -24,7 +24,7 @@ int initSocketTCP(SocketTCP *psocket) {
     return 0;
 }
 
-int connectSocketTCP(SocketTCP *osocket, const char *adresse, u_int16_t port) {
+int connectSocketTCP(SocketTCP *osocket, const char *adresse, uint16_t port) {
     if (osocket == NULL || adresse == NULL || port == 0) {
         return -1;
     }
@@ -45,7 +45,7 @@ int connectSocketTCP(SocketTCP *osocket, const char *adresse, u_int16_t port) {
 }
 
 int creerSocketEcouteTCP(SocketTCP *isocket, const char *adresse,
-                         u_int16_t port) {
+                         uint16_t port) {
     if (isocket == NULL || adresse == NULL || port == 0) {
         return -1;
     }

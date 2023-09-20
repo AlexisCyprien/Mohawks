@@ -109,7 +109,7 @@ uint16_t adresse_internet_get_port(const adresse_internet *adresse) {
 
     char *endptr;
     errno = 0;
-    u_int16_t port = (u_int16_t)strtoul(adresse->service, &endptr, 10);
+    uint16_t port = (uint16_t)strtoul(adresse->service, &endptr, 10);
     if (errno != 0) {
         perror("strtol");
         return 0;
