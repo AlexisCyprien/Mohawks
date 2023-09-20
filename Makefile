@@ -3,7 +3,7 @@ adresse_internet = adresse_internet/
 socket_tcp = socket_tcp/
 mime_type = mime_type/
 dir_index = directory_index/
-CC = gcc
+CC = gcc -static
 CPPFLAGS = -D_XOPEN_SOURCE=700 -D_FORTYFY_SOURCE=2
 CFLAGS = -std=c18 -Wpedantic -Wall -Wextra -Wconversion -Wwrite-strings \
 -Werror -Wformat=2 -Wdate-time -fstack-protector-all -fpie -ftrapv -ld -O2 -g \
